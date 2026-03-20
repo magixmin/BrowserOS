@@ -10,6 +10,7 @@ import {
 } from '@/lib/constants/analyticsEvents'
 import { openSidePanelWithSearch } from '@/lib/messaging/sidepanel/openSidepanelWithSearch'
 import { track } from '@/lib/metrics/track'
+import { PRODUCT_NAME } from '@/lib/constants/product'
 import {
   onboardingCompletedStorage,
   onboardingProfileStorage,
@@ -273,7 +274,7 @@ export const OnboardingDemo = () => {
             Try your first task
           </h2>
           <p className="text-base text-muted-foreground">
-            Pick a suggestion or type your own to see BrowserOS in action
+            {`Pick a suggestion or type your own to see ${PRODUCT_NAME} in action`}
           </p>
         </div>
 

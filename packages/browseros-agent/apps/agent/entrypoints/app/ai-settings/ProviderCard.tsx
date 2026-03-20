@@ -2,6 +2,7 @@ import { Check, Loader2, Trash2 } from 'lucide-react'
 import type { FC } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { PRODUCT_NAME } from '@/lib/constants/product'
 import { useKimiLaunch } from '@/lib/feature-flags/useKimiLaunch'
 import { BrowserOSIcon, ProviderIcon } from '@/lib/llm-providers/providerIcons'
 import type { LlmProviderConfig } from '@/lib/llm-providers/types'
@@ -90,7 +91,7 @@ export const ProviderCard: FC<ProviderCardProps> = ({
               'Extended usage limits for the next 2 weeks!'
             ) : (
               <>
-                BrowserOS-hosted model with strict rate limits.{' '}
+                {`${PRODUCT_NAME}-hosted model with strict rate limits. `}{' '}
                 <a
                   href="https://docs.browseros.com/features/bring-your-own-llm"
                   target="_blank"

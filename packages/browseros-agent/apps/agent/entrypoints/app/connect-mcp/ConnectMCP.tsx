@@ -2,6 +2,7 @@ import { Check, Loader2, Plus, Server, Trash2 } from 'lucide-react'
 import { type FC, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { PRODUCT_NAME } from '@/lib/constants/product'
 import {
   CUSTOM_MCP_ADDED_EVENT,
   MANAGED_MCP_ADDED_EVENT,
@@ -221,7 +222,7 @@ export const ConnectMCP: FC = () => {
           <div className="flex-1">
             <h2 className="mb-1 font-semibold text-xl">Connected Apps</h2>
             <p className="mb-6 text-muted-foreground text-sm">
-              Connect BrowserOS assistant to apps to send email, schedule
+              {`Connect ${PRODUCT_NAME} assistant to apps to send email, schedule`}
               calendar events, write docs, and more
             </p>
 

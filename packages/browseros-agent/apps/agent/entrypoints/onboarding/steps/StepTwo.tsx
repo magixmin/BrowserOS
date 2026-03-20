@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
+import { PRODUCT_NAME } from '@/lib/constants/product'
 import { signIn } from '@/lib/auth/auth-client'
 import {
   ONBOARDING_SIGNIN_COMPLETED_EVENT,
@@ -133,7 +134,7 @@ export const StepTwo = ({ direction, onContinue }: StepTwoProps) => {
         <div className="w-full max-w-md space-y-6">
           <div className="space-y-2 text-center">
             <h2 className="font-bold text-3xl tracking-tight">
-              Sign in to BrowserOS
+              {`Sign in to ${PRODUCT_NAME}`}
             </h2>
             <p className="text-base text-muted-foreground">
               Sync your settings and unlock cloud features

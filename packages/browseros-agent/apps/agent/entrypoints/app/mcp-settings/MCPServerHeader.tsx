@@ -1,6 +1,7 @@
 import { Check, Copy, ExternalLink, Globe, Server } from 'lucide-react'
 import { type FC, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { PRODUCT_MCP_NAME, PRODUCT_NAME } from '@/lib/constants/product'
 
 interface MCPServerHeaderProps {
   serverUrl: string | null
@@ -17,8 +18,8 @@ export const MCPServerHeader: FC<MCPServerHeaderProps> = ({
   serverUrl,
   isLoading,
   error,
-  title = 'BrowserOS MCP Server',
-  description = 'Connect BrowserOS to MCP clients like claude code, gemini and others.',
+  title = PRODUCT_MCP_NAME,
+  description = `Connect ${PRODUCT_NAME} to MCP clients like claude code, gemini and others.`,
   remoteAccessEnabled = false,
 }) => {
   const [isCopied, setIsCopied] = useState(false)

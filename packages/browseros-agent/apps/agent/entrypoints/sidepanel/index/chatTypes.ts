@@ -33,7 +33,7 @@ export const AGENT_SUGGESTIONS: Suggestion[] = [
     icon: '❤️',
   },
   {
-    display: 'Support BrowserOS on Github',
+    display: 'Support Novapilotx on Github',
     prompt:
       'Go to http://git.new/browseros in current tab and star the repository',
     icon: '⭐',
@@ -60,9 +60,9 @@ export const LOBSTER_SUGGESTIONS: Suggestion[] = [
     icon: '⚙️',
   },
   {
-    display: 'Use BrowserOS tools end-to-end',
+    display: 'Use Novapilotx tools end-to-end',
     prompt:
-      'Use BrowserOS browser tools to search, gather evidence, and complete the task step by step.',
+      'Use Novapilotx browser tools to search, gather evidence, and complete the task step by step.',
     icon: '🌐',
   },
 ]

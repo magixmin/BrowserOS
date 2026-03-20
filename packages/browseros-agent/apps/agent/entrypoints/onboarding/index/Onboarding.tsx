@@ -4,6 +4,7 @@ import { NavLink } from 'react-router'
 import { PillIndicator } from '@/components/elements/pill-indicator'
 import { Button } from '@/components/ui/button'
 import { ONBOARDING_STARTED_EVENT } from '@/lib/constants/analyticsEvents'
+import { PRODUCT_NAME, PRODUCT_TAGLINE } from '@/lib/constants/product'
 import { productRepositoryShortUrl } from '@/lib/constants/productUrls'
 import { getCurrentYear } from '@/lib/getCurrentYear'
 import { track } from '@/lib/metrics/track'
@@ -37,7 +38,7 @@ export const Onboarding: FC = () => {
             >
               Welcome to{' '}
               <span className="inline-block animate-glow-once text-accent-orange">
-                BrowserOS
+                {PRODUCT_NAME}
               </span>
             </h1>
 
@@ -83,7 +84,7 @@ export const Onboarding: FC = () => {
       <footer className="border-border/40 border-t py-8">
         <div className="mx-auto max-w-7xl px-6">
           <p className="text-center text-muted-foreground text-sm">
-            BrowserOS © {getCurrentYear()} - The Open-Source Agentic Browser
+            {`${PRODUCT_NAME} © ${getCurrentYear()} - ${PRODUCT_TAGLINE}`}
           </p>
         </div>
       </footer>

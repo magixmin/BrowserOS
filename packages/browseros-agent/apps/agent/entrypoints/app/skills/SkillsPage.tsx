@@ -27,6 +27,7 @@ import { Label } from '@/components/ui/label'
 import { MarkdownEditor } from '@/components/ui/MarkdownEditor'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { PRODUCT_NAME } from '@/lib/constants/product'
 import { type SkillDetail, type SkillMeta, useSkills } from './useSkills'
 
 const loadingSkillCards = [
@@ -284,7 +285,7 @@ const SkillSections: FC<{
 
       {builtInSkills.length > 0 ? (
         <div className="space-y-3">
-          <h3 className="font-semibold text-sm">BrowserOS Skills</h3>
+          <h3 className="font-semibold text-sm">{`${PRODUCT_NAME} Skills`}</h3>
           <SkillGrid>{builtInSkills.map(renderCard)}</SkillGrid>
         </div>
       ) : null}
@@ -422,7 +423,7 @@ const SkillDialog: FC<{
           </DialogTitle>
           <DialogDescription>
             {readOnly
-              ? 'This skill is managed by BrowserOS and updated automatically.'
+              ? `This skill is managed by ${PRODUCT_NAME} and updated automatically.`
               : editingSkill
                 ? 'Refine when the agent should use this skill and how it should execute it.'
                 : 'Define a reusable instruction set your agent can apply when a request matches.'}
@@ -501,7 +502,7 @@ const SkillDialog: FC<{
         <div className="flex flex-col gap-3 border-t px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-muted-foreground text-xs">
             {readOnly
-              ? 'This skill is managed by BrowserOS and updated automatically.'
+              ? `This skill is managed by ${PRODUCT_NAME} and updated automatically.`
               : 'Saved locally and available to your agent immediately.'}
           </p>
           <div className="flex flex-col-reverse gap-2 sm:flex-row">

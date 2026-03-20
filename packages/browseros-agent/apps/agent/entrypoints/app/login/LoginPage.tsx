@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { signIn, useSession } from '@/lib/auth/auth-client'
+import { PRODUCT_NAME } from '@/lib/constants/product'
 
 type LoginState = 'idle' | 'loading' | 'magic-link-sent' | 'error'
 
@@ -133,7 +134,7 @@ export const LoginPage: FC = () => {
             <ArrowLeft className="size-4" />
           </Button>
           <div className="flex-1 pr-9 text-center">
-            <CardTitle className="text-2xl">Welcome to BrowserOS</CardTitle>
+            <CardTitle className="text-2xl">{`Welcome to ${PRODUCT_NAME}`}</CardTitle>
             <CardDescription>
               Sign in to your account to continue
             </CardDescription>

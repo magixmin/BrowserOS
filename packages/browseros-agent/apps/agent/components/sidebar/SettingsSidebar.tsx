@@ -14,6 +14,7 @@ import type { FC } from 'react'
 import { NavLink } from 'react-router'
 import { ThemeToggle } from '@/components/elements/theme-toggle'
 import { Feature } from '@/lib/browseros/capabilities'
+import { PRODUCT_NAME } from '@/lib/constants/product'
 import { useCapabilities } from '@/lib/browseros/useCapabilities'
 import { cn } from '@/lib/utils'
 
@@ -60,7 +61,7 @@ const primarySettingsSections: NavSection[] = [
   {
     label: 'Provider Settings',
     items: [
-      { name: 'BrowserOS AI', to: '/settings/ai', icon: Bot },
+      { name: `${PRODUCT_NAME} AI`, to: '/settings/ai', icon: Bot },
       {
         name: 'Chat & Council Provider',
         to: '/settings/chat',
@@ -73,12 +74,12 @@ const primarySettingsSections: NavSection[] = [
     label: 'Other',
     items: [
       {
-        name: 'Customize BrowserOS',
+        name: `Customize ${PRODUCT_NAME}`,
         to: '/settings/customization',
         icon: Palette,
         feature: Feature.CUSTOMIZATION_SUPPORT,
       },
-      { name: 'BrowserOS as MCP', to: '/settings/mcp', icon: Server },
+      { name: `${PRODUCT_NAME} as MCP`, to: '/settings/mcp', icon: Server },
       {
         name: 'Workflows',
         to: '/workflows',

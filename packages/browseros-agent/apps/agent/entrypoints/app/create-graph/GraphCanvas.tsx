@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router'
 import useDeepCompareEffect from 'use-deep-compare-effect'
 import ProductLogo from '@/assets/product_logo.svg'
 import { Button } from '@/components/ui/button'
+import { PRODUCT_NAME } from '@/lib/constants/product'
 import {
   Tooltip,
   TooltipContent,
@@ -393,7 +394,7 @@ export const GraphCanvas: FC<GraphCanvasProps> = ({
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <img src={ProductLogo} alt="BrowserOS" className="h-8 w-8 shrink-0" />
+          <img src={ProductLogo} alt={PRODUCT_NAME} className="h-8 w-8 shrink-0" />
           {isEditingName ? (
             <input
               type="text"

@@ -1,6 +1,7 @@
 import { FileText, Loader2 } from 'lucide-react'
 import type { FC } from 'react'
 import { MessageResponse } from '@/components/ai-elements/message'
+import { PRODUCT_NAME } from '@/lib/constants/product'
 import { useSoulContent } from './useSoulContent'
 
 export const SoulViewer: FC = () => {
@@ -18,7 +19,7 @@ export const SoulViewer: FC = () => {
     return (
       <div className="rounded-xl border border-destructive/50 bg-destructive/5 p-6">
         <p className="text-destructive text-sm">
-          Could not load soul file. Make sure BrowserOS server is running.
+          {`Could not load soul file. Make sure ${PRODUCT_NAME} server is running.`}
         </p>
       </div>
     )

@@ -1,6 +1,7 @@
 import type { FC } from 'react'
 import ProductLogoSvg from '@/assets/product_logo.svg'
 import { Button } from '@/components/ui/button'
+import { PRODUCT_NAME } from '@/lib/constants/product'
 import { docsUrl, githubOrgUrl } from '@/lib/constants/productUrls'
 
 interface OnboardingHeaderProps {
@@ -16,10 +17,10 @@ export const OnboardingHeader: FC<OnboardingHeaderProps> = ({ isMounted }) => {
         <div className="flex items-center gap-3">
           {/* Floating animation to logo */}
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-orange">
-            <img src={ProductLogoSvg} alt="BrowserOS" className="h-6 w-6" />
+            <img src={ProductLogoSvg} alt={PRODUCT_NAME} className="h-6 w-6" />
           </div>
           <span className="font-semibold text-accent-orange text-lg">
-            BrowserOS
+            {PRODUCT_NAME}
           </span>
         </div>
         <nav className="hidden items-center gap-1 md:flex">

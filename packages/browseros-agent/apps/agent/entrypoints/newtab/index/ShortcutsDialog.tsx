@@ -6,6 +6,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
+import { PRODUCT_NAME } from '@/lib/constants/product'
 import { SHORTCUTS_LIST } from '@/lib/constants/shortcuts'
 import { useIsMac } from '@/lib/useIsMac'
 
@@ -28,7 +29,7 @@ export const ShortcutsDialog = ({
             Keyboard Shortcuts
           </DialogTitle>
           <DialogDescription>
-            Use these shortcuts to navigate BrowserOS faster
+            {`Use these shortcuts to navigate ${PRODUCT_NAME} faster`}
           </DialogDescription>
         </DialogHeader>
 

@@ -2,13 +2,14 @@ import { storage } from '@wxt-dev/storage'
 import { sessionStorage } from '@/lib/auth/sessionStorage'
 import { getBrowserOSAdapter } from '@/lib/browseros/adapter'
 import { BROWSEROS_PREFS } from '@/lib/browseros/prefs'
+import { PRODUCT_NAME } from '@/lib/constants/product'
 import { isKimiLaunchEnabled } from '@/lib/feature-flags/kimi-launch'
 import type { LlmProviderConfig, LlmProvidersBackup } from './types'
 import { uploadLlmProvidersToGraphql } from './uploadLlmProvidersToGraphql'
 
 /** Default provider ID constant */
 export const DEFAULT_PROVIDER_ID = 'browseros'
-const DEFAULT_PROVIDER_NAME = 'BrowserOS'
+const DEFAULT_PROVIDER_NAME = PRODUCT_NAME
 const KIMI_LAUNCH_PROVIDER_NAME = 'Kimi K2.5'
 
 /** Storage key for LLM providers array */

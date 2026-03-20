@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { ShortcutsDialog } from '@/entrypoints/newtab/index/ShortcutsDialog'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { PRODUCT_NAME } from '@/lib/constants/product'
 import { RpcClientProvider } from '@/lib/rpc/RpcClientProvider'
 
 const COLLAPSE_DELAY = 150
@@ -62,7 +63,7 @@ export const SidebarLayout: FC = () => {
             >
               <Menu className="size-4" />
             </Button>
-            <span className="font-semibold">BrowserOS</span>
+            <span className="font-semibold">{PRODUCT_NAME}</span>
           </header>
           <main className="flex-1 overflow-y-auto">
             <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">

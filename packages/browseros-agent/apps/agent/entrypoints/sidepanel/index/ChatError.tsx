@@ -6,6 +6,7 @@ import {
   KIMI_RATE_LIMIT_DOCS_CLICKED_EVENT,
   KIMI_RATE_LIMIT_PLATFORM_CLICKED_EVENT,
 } from '@/lib/constants/analyticsEvents'
+import { PRODUCT_NAME } from '@/lib/constants/product'
 import { track } from '@/lib/metrics/track'
 
 // --- Commented out for Kimi partnership launch (restore after) ---
@@ -38,7 +39,7 @@ function parseErrorMessage(message: string): {
     message.includes('127.0.0.1')
   ) {
     return {
-      text: 'Unable to connect to BrowserOS agent. Follow below instructions.',
+      text: `Unable to connect to ${PRODUCT_NAME} agent. Follow below instructions.`,
       url: 'https://docs.browseros.com/troubleshooting/connection-issues',
       isConnectionError: true,
     }

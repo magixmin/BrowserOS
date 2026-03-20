@@ -52,6 +52,7 @@ import { useMcpServers } from '@/lib/mcp/mcpServerStorage'
 import { useSyncRemoteIntegrations } from '@/lib/mcp/useSyncRemoteIntegrations'
 import { openSidePanelWithSearch } from '@/lib/messaging/sidepanel/openSidepanelWithSearch'
 import { track } from '@/lib/metrics/track'
+import { PRODUCT_NAME } from '@/lib/constants/product'
 import { cn } from '@/lib/utils'
 import { useWorkspace } from '@/lib/workspace/use-workspace'
 import { ImportDataHint } from './ImportDataHint'
@@ -129,7 +130,7 @@ export const NewTab = () => {
     query: inputValue,
     selectedTabs,
   })
-  const searchPlaceholder = `Ask BrowserOS or search ${providerConfig.name}...`
+  const searchPlaceholder = `Ask ${PRODUCT_NAME} or search ${providerConfig.name}...`
 
   const {
     isOpen,

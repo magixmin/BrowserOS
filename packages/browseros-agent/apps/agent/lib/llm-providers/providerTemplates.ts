@@ -1,3 +1,4 @@
+import { PRODUCT_NAME } from '@/lib/constants/product'
 import type { ProviderType } from './types'
 
 /**
@@ -159,7 +160,7 @@ export const providerTypeOptions: { value: ProviderType; label: string }[] = [
   { value: 'ollama', label: 'Ollama' },
   { value: 'lmstudio', label: 'LM Studio' },
   { value: 'bedrock', label: 'AWS Bedrock' },
-  { value: 'browseros', label: 'BrowserOS' },
+  { value: 'browseros', label: PRODUCT_NAME },
 ]
 
 /**
