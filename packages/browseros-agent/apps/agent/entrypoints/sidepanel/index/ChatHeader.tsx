@@ -15,6 +15,7 @@ interface ChatHeaderProps {
   onNewConversation: () => void
   hasMessages: boolean
   hideHistory?: boolean
+  title?: string
 }
 
 export const ChatHeader: FC<ChatHeaderProps> = ({
@@ -24,6 +25,7 @@ export const ChatHeader: FC<ChatHeaderProps> = ({
   onNewConversation,
   hasMessages,
   hideHistory,
+  title,
 }) => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -37,6 +39,11 @@ export const ChatHeader: FC<ChatHeaderProps> = ({
   return (
     <header className="flex items-center justify-between border-border/40 border-b bg-background/80 px-3 py-2.5 backdrop-blur-md">
       <div className="flex items-center gap-2">
+        {title ? (
+          <div className="rounded-lg bg-[var(--accent-orange)]/10 px-2.5 py-1 font-semibold text-[var(--accent-orange)] text-xs">
+            {title}
+          </div>
+        ) : null}
         {/* Provider Selector */}
         <ChatProviderSelector
           providers={providers}

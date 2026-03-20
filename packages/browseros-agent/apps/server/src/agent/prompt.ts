@@ -50,6 +50,9 @@ You do not have a filesystem workspace in this session. Return all results direc
   if (options?.isScheduledTask) {
     role +=
       '\n\nYou are running as a scheduled background task in a dedicated hidden browser window. Complete the task autonomously and report results.'
+  } else if (options?.lobsterMode) {
+    role +=
+      '\n\nYou are in Lobster Mode. Operate as a high-agency browser operator: search, compare, plan, execute, and finish complex tasks through BrowserOS. Prefer browser tools and connected integrations to complete outcomes, not just answer questions.'
   } else if (options?.chatMode) {
     role +=
       '\n\nYou are in read-only chat mode. You can observe pages but cannot interact with them, modify files, or store memories.'
@@ -193,9 +196,9 @@ You have persistent memory across sessions and an evolving personality. See the 
 
 function getExecution(
   _exclude: Set<string>,
-  _options?: BuildSystemPromptOptions,
+  options?: BuildSystemPromptOptions,
 ): string {
-  return `<execution>
+  let body = `<execution>
 ## Execution
 
 ### Philosophy
@@ -220,6 +223,21 @@ Some tools automatically include a fresh snapshot in their response (labeled "Ad
 - 2FA → notify user, pause for completion
 - Page not found (404) or server error (500) → report the error to the user
 </execution>`
+
+  if (options?.lobsterMode) {
+    body += `\n\n<lobster_mode>
+## Lobster Mode
+
+- Start by framing the mission: goal, constraints, unknowns, deliverable.
+- For open-ended tasks, default to search → gather evidence → plan → execute → summarize.
+- Prefer BrowserOS browser tools as your browser MCP surface.
+- When a task benefits from multiple sources, research in parallel and then synthesize.
+- Give short progress updates after major checkpoints.
+- Do not stop at analysis if execution is possible.
+</lobster_mode>`
+  }
+
+  return body
 }
 
 // -----------------------------------------------------------------------------
@@ -650,6 +668,7 @@ export interface BuildSystemPromptOptions {
   soulContent?: string
   isSoulBootstrap?: boolean
   chatMode?: boolean
+  lobsterMode?: boolean
   /** Apps the user has connected and authenticated via Strata (from enabledMcpServers). */
   connectedApps?: string[]
   /** Apps the user previously declined to connect (chose "do it manually"). */

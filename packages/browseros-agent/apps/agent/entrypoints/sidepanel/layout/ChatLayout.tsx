@@ -2,11 +2,17 @@ import type { FC } from 'react'
 import { Outlet } from 'react-router'
 import { ChatHeader } from '../index/ChatHeader'
 import {
+  type ChatSessionOptions,
   ChatSessionProvider,
   useChatSessionContext,
 } from './ChatSessionContext'
 
-const ChatLayoutContent: FC = () => {
+interface ChatLayoutProps {
+  sessionOptions?: ChatSessionOptions
+  title?: string
+}
+
+const ChatLayoutContent: FC<Pick<ChatLayoutProps, 'title'>> = ({ title }) => {
   const {
     providers,
     selectedProvider,
@@ -32,6 +38,7 @@ const ChatLayoutContent: FC = () => {
         providers={providers}
         onNewConversation={resetConversation}
         hasMessages={messages.length > 0}
+        title={title}
       />
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <Outlet />
@@ -40,10 +47,13 @@ const ChatLayoutContent: FC = () => {
   )
 }
 
-export const ChatLayout: FC = () => {
+export const ChatLayout: FC<ChatLayoutProps> = ({
+  sessionOptions,
+  title,
+}) => {
   return (
-    <ChatSessionProvider>
-      <ChatLayoutContent />
+    <ChatSessionProvider {...sessionOptions}>
+      <ChatLayoutContent title={title} />
     </ChatSessionProvider>
   )
 }

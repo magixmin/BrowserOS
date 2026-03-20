@@ -85,7 +85,11 @@ export const NewTabChat: FC = () => {
     if (!query) return
 
     hasSentInitialRef.current = true
-    if (chatMode === 'chat' || chatMode === 'agent') {
+    if (
+      chatMode === 'chat' ||
+      chatMode === 'agent' ||
+      chatMode === 'lobster'
+    ) {
       setMode(chatMode)
     }
     setSearchParams({}, { replace: true })
@@ -109,7 +113,7 @@ export const NewTabChat: FC = () => {
                   tabs: matchedTabs,
                 })
               : createBrowserOSAction({
-                  mode: (chatMode as 'chat' | 'agent') ?? 'agent',
+                  mode: (chatMode as 'chat' | 'agent' | 'lobster') ?? 'agent',
                   message: query,
                   tabs: matchedTabs,
                 })

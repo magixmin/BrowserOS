@@ -276,7 +276,7 @@ export const NewTab = () => {
 
   const startInlineChat = (
     message: string,
-    chatMode: 'chat' | 'agent',
+    chatMode: 'chat' | 'agent' | 'lobster',
     aiTab?: { name: string; description: string },
   ) => {
     track(NEWTAB_CHAT_STARTED_EVENT, {

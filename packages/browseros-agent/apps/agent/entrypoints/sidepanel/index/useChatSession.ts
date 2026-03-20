@@ -73,6 +73,7 @@ export interface ChatSessionOptions {
   origin?: ChatOrigin
   /** When false, messages are queued until integrations finish syncing. */
   isIntegrationsSynced?: boolean
+  initialMode?: ChatMode
 }
 
 const NEWTAB_SYSTEM_PROMPT = `IMPORTANT: The user is chatting from the New Tab page. When performing browser actions, ALWAYS open content in a NEW TAB rather than navigating the current tab. The user's new tab page should remain accessible.`
@@ -117,7 +118,7 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     type: p.type,
   }))
 
-  const [mode, setMode] = useState<ChatMode>('agent')
+  const [mode, setMode] = useState<ChatMode>(options?.initialMode ?? 'agent')
   const [textToAction, setTextToAction] = useState<Map<string, ChatAction>>(
     new Map(),
   )

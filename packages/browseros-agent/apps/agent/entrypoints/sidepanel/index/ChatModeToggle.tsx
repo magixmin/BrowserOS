@@ -1,11 +1,5 @@
-import { MessageSquare, MousePointer2 } from 'lucide-react'
+import { Bot, MessageSquare, MousePointer2, Sparkles } from 'lucide-react'
 import type { FC } from 'react'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import type { ChatMode } from './chatTypes'
 
@@ -18,41 +12,63 @@ export const ChatModeToggle: FC<ChatModeToggleProps> = ({
   mode,
   onModeChange,
 }) => {
-  const isAgentMode = mode === 'agent'
+  const modes: Array<{
+    id: ChatMode
+    label: string
+    icon: typeof MessageSquare
+    title: string
+  }> = [
+    {
+      id: 'chat',
+      label: 'Chat',
+      icon: MessageSquare,
+      title: 'Read-only page chat',
+    },
+    {
+      id: 'agent',
+      label: 'Agent',
+      icon: MousePointer2,
+      title: 'Full browser automation',
+    },
+    {
+      id: 'lobster',
+      label: 'Lobster',
+      icon: Sparkles,
+      title: 'High-agency browser operator',
+    },
+  ]
 
   return (
-    <TooltipProvider delayDuration={0}>
-      <Tooltip>
-        <TooltipTrigger asChild>
+    <div className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-muted/40 p-1">
+      {modes.map((entry) => {
+        const Icon = entry.icon
+        const isActive = mode === entry.id
+        return (
           <button
+            key={entry.id}
             type="button"
-            onClick={() => onModeChange(isAgentMode ? 'chat' : 'agent')}
+            onClick={() => onModeChange(entry.id)}
+            title={entry.title}
             className={cn(
-              'flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 font-medium text-xs transition-all',
-              isAgentMode
-                ? 'border-border/50 bg-muted text-muted-foreground hover:text-foreground'
-                : 'border-[var(--accent-orange)]/30 bg-[var(--accent-orange)]/10 text-[var(--accent-orange)]',
+              'flex items-center gap-1.5 rounded-full px-2.5 py-1.5 font-medium text-xs transition-all',
+              isActive
+                ? entry.id === 'chat'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'bg-[var(--accent-orange)]/12 text-[var(--accent-orange)] shadow-sm'
+                : 'text-muted-foreground hover:bg-background/70 hover:text-foreground',
             )}
           >
-            {isAgentMode ? (
-              <>
-                <MousePointer2 className="h-3 w-3" />
-                <span>Agent Mode ON</span>
-              </>
+            {entry.id === 'agent' ? (
+              <MousePointer2 className="h-3 w-3" />
+            ) : entry.id === 'lobster' ? (
+              <Bot className="h-3 w-3" />
             ) : (
-              <>
-                <MessageSquare className="h-3 w-3" />
-                <span>Chat Mode ON</span>
-              </>
+              <Icon className="h-3 w-3" />
             )}
+            <span>{entry.label}</span>
           </button>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-[220px]">
-          {isAgentMode
-            ? 'AI can browse, click, and navigate'
-            : 'AI can only read, cannot click or navigate'}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+        )
+      })}
+    </div>
   )
 }

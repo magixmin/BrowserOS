@@ -12,6 +12,16 @@ export const App: FC = () => {
           <Route index element={<Chat />} />
           <Route path="history" element={<ChatHistory />} />
         </Route>
+        <Route
+          element={
+            <ChatLayout
+              sessionOptions={{ initialMode: 'lobster' }}
+              title="Lobster"
+            />
+          }
+        >
+          <Route path="lobster" element={<Chat />} />
+        </Route>
       </Routes>
     </HashRouter>
   )

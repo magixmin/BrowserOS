@@ -5,6 +5,7 @@ import fillForm from './fill-form/SKILL.md' with { type: 'text' }
 import findAlternatives from './find-alternatives/SKILL.md' with {
   type: 'text',
 }
+import lobsterSystem from './lobster-system/SKILL.md' with { type: 'text' }
 import manageBookmarks from './manage-bookmarks/SKILL.md' with { type: 'text' }
 import monitorPage from './monitor-page/SKILL.md' with { type: 'text' }
 import organizeTabs from './organize-tabs/SKILL.md' with { type: 'text' }
@@ -20,6 +21,7 @@ type DefaultSkill = { id: string; content: string }
 export const DEFAULT_SKILLS: DefaultSkill[] = [
   { id: 'summarize-page', content: summarizePage },
   { id: 'deep-research', content: deepResearch },
+  { id: 'lobster-system', content: lobsterSystem },
   { id: 'extract-data', content: extractData },
   { id: 'fill-form', content: fillForm },
   { id: 'screenshot-walkthrough', content: screenshotWalkthrough },

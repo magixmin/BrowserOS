@@ -62,6 +62,7 @@ export class ChatService {
       workingDir,
       supportsImages: request.supportsImages,
       chatMode: request.mode === 'chat',
+      lobsterMode: request.mode === 'lobster',
       isScheduledTask: request.isScheduledTask,
       declinedApps: request.declinedApps,
     }

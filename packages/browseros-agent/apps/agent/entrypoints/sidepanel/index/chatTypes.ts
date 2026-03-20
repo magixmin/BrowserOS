@@ -1,4 +1,4 @@
-export type ChatMode = 'chat' | 'agent'
+export type ChatMode = 'chat' | 'agent' | 'lobster'
 
 export interface Suggestion {
   display: string
@@ -43,5 +43,26 @@ export const AGENT_SUGGESTIONS: Suggestion[] = [
     prompt:
       'Open amazon.com in current tab and add sensodyne toothpaste to cart',
     icon: '🛒',
+  },
+]
+
+export const LOBSTER_SUGGESTIONS: Suggestion[] = [
+  {
+    display: 'Search, compare, and recommend',
+    prompt:
+      'Search the web for the best options, compare them, and give me a recommendation with reasoning.',
+    icon: '🦞',
+  },
+  {
+    display: 'Research and execute the task',
+    prompt:
+      'Research what is needed, make a plan, use the browser to do the work, then summarize the result.',
+    icon: '⚙️',
+  },
+  {
+    display: 'Use BrowserOS tools end-to-end',
+    prompt:
+      'Use BrowserOS browser tools to search, gather evidence, and complete the task step by step.',
+    icon: '🌐',
   },
 ]

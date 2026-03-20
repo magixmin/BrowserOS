@@ -5,6 +5,8 @@ import {
   useChatSession,
 } from '../index/useChatSession'
 
+export type { ChatSessionOptions }
+
 type ChatSessionContextValue = ReturnType<typeof useChatSession>
 
 const ChatSessionContext = createContext<ChatSessionContextValue | null>(null)

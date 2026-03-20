@@ -35,7 +35,11 @@ describe('Flow tests against live CDN', () => {
     await syncBuiltinSkills()
     const entries = await readdir(builtinDir)
     const skills = entries.filter((e) => !e.startsWith('.'))
-    assert.strictEqual(skills.length, 12)
+    assert.ok(
+      skills.includes('lobster-system'),
+      'should include bundled lobster-system skill',
+    )
+    assert.ok(skills.length >= 13, 'should install bundled and remote skills')
   })
 
   it('preserves disabled state during sync', async () => {

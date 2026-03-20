@@ -373,7 +373,9 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
                 ? 'Transcribing...'
                 : mode === 'chat'
                   ? 'Ask about this page...'
-                  : 'What should I do?'
+                  : mode === 'lobster'
+                    ? 'Ask Lobster to search, plan, and do the work...'
+                    : 'What should I do?'
             }
             disabled={voice?.isTranscribing}
             rows={1}

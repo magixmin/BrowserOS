@@ -163,6 +163,7 @@ export class AiSdkAgent {
       soulContent,
       isSoulBootstrap: isBootstrap,
       chatMode: config.resolvedConfig.chatMode,
+      lobsterMode: config.resolvedConfig.lobsterMode,
       connectedApps: config.browserContext?.enabledMcpServers,
       declinedApps: config.resolvedConfig.declinedApps,
       skillsCatalog,
