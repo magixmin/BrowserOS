@@ -9,12 +9,14 @@ import {
   RotateCcw,
   Search,
   Server,
+  Settings2,
 } from 'lucide-react'
 import type { FC } from 'react'
 import { NavLink } from 'react-router'
 import { ThemeToggle } from '@/components/elements/theme-toggle'
 import { Feature } from '@/lib/browseros/capabilities'
 import { PRODUCT_NAME } from '@/lib/constants/product'
+import { useI18n } from '@/lib/i18n/useI18n'
 import { useCapabilities } from '@/lib/browseros/useCapabilities'
 import { cn } from '@/lib/utils'
 
@@ -97,7 +99,68 @@ const helpItems: NavItem[] = [
 ]
 
 export const SettingsSidebar: FC = () => {
+  const { t } = useI18n()
   const { supports } = useCapabilities()
+
+  const primarySettingsSections: NavSection[] = [
+    {
+      label: t('settings.section.providers'),
+      items: [
+        {
+          name: t('settings.nav.ai', { product: PRODUCT_NAME }),
+          to: '/settings/ai',
+          icon: Bot,
+        },
+        {
+          name: t('settings.nav.chatCouncil'),
+          to: '/settings/chat',
+          icon: MessageSquare,
+        },
+        { name: t('settings.nav.search'), to: '/settings/search', icon: Search },
+      ],
+    },
+    {
+      label: t('settings.section.other'),
+      items: [
+        {
+          name: t('settings.nav.customize', { product: PRODUCT_NAME }),
+          to: '/settings/customization',
+          icon: Palette,
+          feature: Feature.CUSTOMIZATION_SUPPORT,
+        },
+        {
+          name: t('settings.nav.mcp', { product: PRODUCT_NAME }),
+          to: '/settings/mcp',
+          icon: Server,
+        },
+        {
+          name: 'NanoClaw',
+          to: '/settings/nanoclaw',
+          icon: Settings2,
+        },
+        {
+          name: t('settings.nav.workflows'),
+          to: '/workflows',
+          icon: GitBranch,
+          feature: Feature.WORKFLOW_SUPPORT,
+        },
+      ],
+    },
+  ]
+
+  const helpItems: NavItem[] = [
+    {
+      name: t('settings.nav.docs'),
+      href: 'https://docs.browseros.com/',
+      icon: BookOpen,
+    },
+    { name: t('settings.nav.features'), to: '/onboarding/features', icon: Compass },
+    {
+      name: t('settings.nav.revisitOnboarding'),
+      to: '/onboarding',
+      icon: RotateCcw,
+    },
+  ]
 
   const filteredSections = primarySettingsSections
     .map((section) => ({
@@ -158,7 +221,7 @@ export const SettingsSidebar: FC = () => {
           className="flex h-9 items-center gap-2 overflow-hidden whitespace-nowrap rounded-md px-3 font-medium text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
           <ArrowLeft className="size-4 shrink-0" />
-          <span className="truncate">Back</span>
+            <span className="truncate">{t('settings.back')}</span>
         </NavLink>
         <ThemeToggle
           className="mr-1 h-8 w-8 shrink-0"
@@ -168,11 +231,11 @@ export const SettingsSidebar: FC = () => {
 
       <div className="flex flex-1 flex-col overflow-y-auto overflow-x-hidden p-2">
         <div className="mb-2 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">
-          Settings
+          {t('settings.title')}
         </div>
         <div>{filteredSections.map(renderSection)}</div>
         <div className="mt-auto pt-4">
-          <div className={sectionLabelClassName}>Help</div>
+          <div className={sectionLabelClassName}>{t('settings.help')}</div>
           <nav className="space-y-1">
             {filteredHelpItems.map(renderNavItem)}
           </nav>

@@ -5,6 +5,7 @@ import { PillIndicator } from '@/components/elements/pill-indicator'
 import { Button } from '@/components/ui/button'
 import { ONBOARDING_STARTED_EVENT } from '@/lib/constants/analyticsEvents'
 import { PRODUCT_NAME, PRODUCT_TAGLINE } from '@/lib/constants/product'
+import { useI18n } from '@/lib/i18n/useI18n'
 import { productRepositoryShortUrl } from '@/lib/constants/productUrls'
 import { getCurrentYear } from '@/lib/getCurrentYear'
 import { track } from '@/lib/metrics/track'
@@ -12,6 +13,7 @@ import { FocusGrid } from './FocusGrid'
 import { OnboardingHeader } from './OnboardingHeader'
 
 export const Onboarding: FC = () => {
+  const { t } = useI18n()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -36,7 +38,7 @@ export const Onboarding: FC = () => {
             <h1
               className={`text-balance font-semibold text-5xl leading-[1.1] tracking-tight transition-all delay-200 duration-700 md:text-7xl ${mounted ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}
             >
-              Welcome to{' '}
+              {t('onboarding.welcome')}{' '}
               <span className="inline-block animate-glow-once text-accent-orange">
                 {PRODUCT_NAME}
               </span>
@@ -84,7 +86,11 @@ export const Onboarding: FC = () => {
       <footer className="border-border/40 border-t py-8">
         <div className="mx-auto max-w-7xl px-6">
           <p className="text-center text-muted-foreground text-sm">
-            {`${PRODUCT_NAME} © ${getCurrentYear()} - ${PRODUCT_TAGLINE}`}
+            {t('onboarding.footer', {
+              product: PRODUCT_NAME,
+              year: getCurrentYear(),
+              tagline: PRODUCT_TAGLINE,
+            })}
           </p>
         </div>
       </footer>

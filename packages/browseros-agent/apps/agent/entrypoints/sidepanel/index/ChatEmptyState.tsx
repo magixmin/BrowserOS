@@ -1,12 +1,8 @@
 import { Sparkles } from 'lucide-react'
 import type { FC } from 'react'
+import { useI18n } from '@/lib/i18n/useI18n'
 import { cn } from '@/lib/utils'
-import {
-  AGENT_SUGGESTIONS,
-  CHAT_SUGGESTIONS,
-  LOBSTER_SUGGESTIONS,
-  type ChatMode,
-} from './chatTypes'
+import { getSuggestions, type ChatMode } from './chatTypes'
 
 interface ChatEmptyStateProps {
   mode: ChatMode
@@ -19,26 +15,22 @@ export const ChatEmptyState: FC<ChatEmptyStateProps> = ({
   mounted,
   onSuggestionClick,
 }) => {
-  const suggestions =
-    mode === 'chat'
-      ? CHAT_SUGGESTIONS
-      : mode === 'lobster'
-        ? LOBSTER_SUGGESTIONS
-        : AGENT_SUGGESTIONS
+  const { t } = useI18n()
+  const suggestions = getSuggestions(mode, t)
 
   const title =
     mode === 'chat'
-      ? 'Chat with this page'
+      ? t('chat.empty.chatTitle')
       : mode === 'lobster'
-        ? 'Lobster mode'
-        : 'Agent at your service'
+        ? t('chat.empty.lobsterTitle')
+        : t('chat.empty.agentTitle')
 
   const subtitle =
     mode === 'chat'
-      ? 'Ask questions about the current page or any topic'
+      ? t('chat.empty.chatSubtitle')
       : mode === 'lobster'
-        ? 'Search, plan, execute, and finish complex browser tasks'
-        : 'Let AI automate tasks and browse for you'
+        ? t('chat.empty.lobsterSubtitle')
+        : t('chat.empty.agentSubtitle')
 
   return (
     <div

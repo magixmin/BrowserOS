@@ -3,6 +3,7 @@ import { type FC, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { PRODUCT_NAME } from '@/lib/constants/product'
+import { useI18n } from '@/lib/i18n/useI18n'
 import {
   CUSTOM_MCP_ADDED_EVENT,
   MANAGED_MCP_ADDED_EVENT,
@@ -36,6 +37,7 @@ const failedToRemoveMcp = (serverName: string, e: unknown) => {
  * @public
  */
 export const ConnectMCP: FC = () => {
+  const { t } = useI18n()
   const { servers: createdServers, addServer, removeServer } = useMcpServers()
   const [addingManagedMcp, setAddingManagedMcp] = useState(false)
   const [addingCustomMcp, setAddingCustomMcp] = useState(false)
@@ -222,8 +224,7 @@ export const ConnectMCP: FC = () => {
           <div className="flex-1">
             <h2 className="mb-1 font-semibold text-xl">Connected Apps</h2>
             <p className="mb-6 text-muted-foreground text-sm">
-              {`Connect ${PRODUCT_NAME} assistant to apps to send email, schedule`}
-              calendar events, write docs, and more
+              {t('connectMcp.description', { product: PRODUCT_NAME })}
             </p>
 
             <div className="flex flex-wrap gap-3">

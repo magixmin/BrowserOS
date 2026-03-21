@@ -28,6 +28,9 @@ import { MarkdownEditor } from '@/components/ui/MarkdownEditor'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { PRODUCT_NAME } from '@/lib/constants/product'
+import { useI18n } from '@/lib/i18n/useI18n'
+import { SkillMarketplaceSection } from './SkillMarketplaceSection'
+import { useSkillCatalog } from './useSkillCatalog'
 import { type SkillDetail, type SkillMeta, useSkills } from './useSkills'
 
 const loadingSkillCards = [
@@ -40,6 +43,7 @@ const loadingSkillCards = [
 ]
 
 export const SkillsPage: FC = () => {
+  const { t } = useI18n()
   const {
     skills,
     isLoading,
@@ -50,6 +54,11 @@ export const SkillsPage: FC = () => {
     deleteSkill,
     fetchSkillDetail,
   } = useSkills()
+  const {
+    skills: catalogSkills,
+    installSkill,
+    installing,
+  } = useSkillCatalog()
 
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingSkill, setEditingSkill] = useState<SkillDetail | null>(null)
@@ -110,12 +119,30 @@ export const SkillsPage: FC = () => {
       ) : null}
 
       {!isLoading && !error && skills.length > 0 ? (
-        <SkillSections
-          skills={skills}
-          onEdit={handleEdit}
-          onDelete={(skill) => setSkillToDelete(skill)}
-          onToggle={handleToggle}
-        />
+        <div className="space-y-6">
+          <SkillSections
+            skills={skills}
+            onEdit={handleEdit}
+            onDelete={(skill) => setSkillToDelete(skill)}
+            onToggle={handleToggle}
+          />
+          <SkillMarketplaceSection
+            skills={catalogSkills}
+            installingId={installing}
+            onInstall={async (input) => {
+              try {
+                await installSkill(input)
+                toast.success(`Installed skill: ${input.id}`)
+              } catch (err) {
+                toast.error(
+                  err instanceof Error
+                    ? err.message
+                    : 'Failed to install skill',
+                )
+              }
+            }}
+          />
+        </div>
       ) : null}
 
       <SkillDialog
@@ -261,6 +288,7 @@ const SkillSections: FC<{
   onDelete: (skill: SkillMeta) => void
   onToggle: (skill: SkillMeta, enabled: boolean) => void
 }> = ({ skills, onEdit, onDelete, onToggle }) => {
+  const { t } = useI18n()
   const userSkills = skills.filter((s) => !s.builtIn)
   const builtInSkills = skills.filter((s) => s.builtIn)
 
@@ -278,14 +306,16 @@ const SkillSections: FC<{
     <div className="space-y-6">
       {userSkills.length > 0 ? (
         <div className="space-y-3">
-          <h3 className="font-semibold text-sm">My Skills</h3>
+          <h3 className="font-semibold text-sm">{t('skills.mySkills')}</h3>
           <SkillGrid>{userSkills.map(renderCard)}</SkillGrid>
         </div>
       ) : null}
 
       {builtInSkills.length > 0 ? (
         <div className="space-y-3">
-          <h3 className="font-semibold text-sm">{`${PRODUCT_NAME} Skills`}</h3>
+          <h3 className="font-semibold text-sm">
+            {t('skills.builtinSkills', { product: PRODUCT_NAME })}
+          </h3>
           <SkillGrid>{builtInSkills.map(renderCard)}</SkillGrid>
         </div>
       ) : null}
@@ -298,8 +328,10 @@ const SkillCard: FC<{
   onEdit: () => void
   onDelete: () => void
   onToggle: (enabled: boolean) => void
-}> = ({ skill, onEdit, onDelete, onToggle }) => (
-  <Card className="h-full py-0 shadow-sm">
+}> = ({ skill, onEdit, onDelete, onToggle }) => {
+  const { t } = useI18n()
+  return (
+    <Card className="h-full py-0 shadow-sm">
     <CardContent className="flex h-full flex-col p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -333,12 +365,12 @@ const SkillCard: FC<{
           {skill.builtIn ? (
             <>
               <Eye className="size-3.5" />
-              View
+              {t('skills.viewSkill')}
             </>
           ) : (
             <>
               <Pencil className="size-3.5" />
-              Edit
+              {t('skills.editSkill')}
             </>
           )}
         </Button>
@@ -356,7 +388,8 @@ const SkillCard: FC<{
       </div>
     </CardContent>
   </Card>
-)
+  )
+}
 
 const SkillDialog: FC<{
   open: boolean
@@ -369,6 +402,7 @@ const SkillDialog: FC<{
     content: string
   }) => Promise<void>
 }> = ({ open, onOpenChange, editingSkill, readOnly, onSave }) => {
+  const { t } = useI18n()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [content, setContent] = useState('')
@@ -416,24 +450,24 @@ const SkillDialog: FC<{
         <DialogHeader className="border-b px-6 py-5">
           <DialogTitle>
             {readOnly
-              ? 'View Skill'
+              ? t('skills.viewSkill')
               : editingSkill
-                ? 'Edit Skill'
-                : 'Create Skill'}
+                ? t('skills.editSkill')
+                : t('skills.createSkill')}
           </DialogTitle>
           <DialogDescription>
             {readOnly
-              ? `This skill is managed by ${PRODUCT_NAME} and updated automatically.`
+              ? t('skills.managedByProduct', { product: PRODUCT_NAME })
               : editingSkill
-                ? 'Refine when the agent should use this skill and how it should execute it.'
-                : 'Define a reusable instruction set your agent can apply when a request matches.'}
+                ? t('skills.editDescription')
+                : t('skills.createDescription')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[280px_minmax(0,1fr)] lg:overflow-hidden">
           <div className="space-y-5 border-b bg-muted/20 px-6 py-5 lg:border-r lg:border-b-0">
             <div className="space-y-2">
-              <Label htmlFor="skill-name">Name</Label>
+              <Label htmlFor="skill-name">{t('skills.name')}</Label>
               <Input
                 id="skill-name"
                 placeholder="e.g., Read Later"
@@ -443,12 +477,12 @@ const SkillDialog: FC<{
                 readOnly={readOnly}
               />
               <p className="text-muted-foreground text-xs leading-5">
-                Keep it short and recognizable in the skills list.
+                {t('skills.nameHint')}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="skill-description">Description</Label>
+              <Label htmlFor="skill-description">{t('skills.description')}</Label>
               <Textarea
                 id="skill-description"
                 placeholder="Describe when the agent should use this skill."
@@ -459,16 +493,18 @@ const SkillDialog: FC<{
                 readOnly={readOnly}
               />
               <p className="text-muted-foreground text-xs leading-5">
-                This is the trigger summary the agent uses to pick the skill.
+                {t('skills.descriptionHint')}
               </p>
             </div>
 
             {!readOnly ? (
               <div className="mt-auto rounded-lg border border-border/60 border-dashed bg-muted/30 px-3 py-2.5">
-                <p className="font-medium text-muted-foreground text-xs">Tip</p>
+                <p className="font-medium text-muted-foreground text-xs">
+                  {t('skills.tip')}
+                </p>
                 <ul className="mt-1.5 list-disc space-y-1 pl-4 text-muted-foreground text-xs leading-5">
-                  <li>List the ordered steps the agent should follow.</li>
-                  <li>Close with the output or formatting you expect back.</li>
+                  <li>{t('skills.tip.step1')}</li>
+                  <li>{t('skills.tip.step2')}</li>
                 </ul>
               </div>
             ) : null}
@@ -476,7 +512,7 @@ const SkillDialog: FC<{
 
           <div className="flex min-h-0 flex-col px-6 py-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <Label htmlFor="skill-content">Instructions (Markdown)</Label>
+              <Label htmlFor="skill-content">{t('skills.instructions')}</Label>
               <Badge variant="outline" className="border-border bg-background">
                 {content.length} characters
               </Badge>
@@ -502,13 +538,13 @@ const SkillDialog: FC<{
         <div className="flex flex-col gap-3 border-t px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-muted-foreground text-xs">
             {readOnly
-              ? `This skill is managed by ${PRODUCT_NAME} and updated automatically.`
-              : 'Saved locally and available to your agent immediately.'}
+              ? t('skills.managedByProduct', { product: PRODUCT_NAME })
+              : t('skills.savedLocally')}
           </p>
           <div className="flex flex-col-reverse gap-2 sm:flex-row">
             {readOnly ? (
               <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Close
+                {t('skills.close')}
               </Button>
             ) : (
               <>

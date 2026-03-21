@@ -1,3 +1,5 @@
+/// <reference path="./md.d.ts" />
+
 import comparePrices from './compare-prices/SKILL.md' with { type: 'text' }
 import deepResearch from './deep-research/SKILL.md' with { type: 'text' }
 import extractData from './extract-data/SKILL.md' with { type: 'text' }

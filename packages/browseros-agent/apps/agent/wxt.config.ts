@@ -2,6 +2,7 @@ import { sentryVitePlugin } from '@sentry/vite-plugin'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'wxt'
 import { LEGACY_AGENT_EXTENSION_ID } from './lib/constants/legacyAgentExtensionId'
+import { PRODUCT_NAME } from './lib/constants/product'
 import { PRODUCT_WEB_HOST } from './lib/constants/productWebHost'
 
 // biome-ignore lint/style/noProcessEnv: build config file needs env access
@@ -50,7 +51,7 @@ export default defineConfig({
         48: 'icon/48.png',
         128: 'icon/128.png',
       },
-      default_title: 'Ask BrowserOS',
+      default_title: `Ask ${PRODUCT_NAME}`,
     },
     permissions: [
       'topSites',

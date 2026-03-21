@@ -1,6 +1,7 @@
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
+import { installMarketplaceSkill, listMarketplaceSkills } from '../../skills/market'
 import {
   createSkill,
   deleteSkill,
@@ -22,8 +23,37 @@ const UpdateSkillSchema = z.object({
   enabled: z.boolean().optional(),
 })
 
+const InstallMarketplaceSkillSchema = z.object({
+  source: z.enum(['browseros-remote', 'openai-curated']),
+  id: z.string().min(1).max(128),
+})
+
 export function createSkillsRoutes() {
   return new Hono()
+    .get('/catalog', async (c) => {
+      try {
+        const skills = await listMarketplaceSkills()
+        return c.json({ skills })
+      } catch (err) {
+        const msg =
+          err instanceof Error ? err.message : 'Failed to load marketplace'
+        return c.json({ error: msg }, 500)
+      }
+    })
+    .post(
+      '/catalog/install',
+      zValidator('json', InstallMarketplaceSkillSchema),
+      async (c) => {
+        try {
+          await installMarketplaceSkill(c.req.valid('json'))
+          return c.json({ ok: true }, 201)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Failed to install'
+          const status = msg.includes('already installed') ? 409 : 400
+          return c.json({ error: msg }, status)
+        }
+      },
+    )
     .get('/', async (c) => {
       const skills = await listSkills()
       return c.json({ skills })

@@ -23,6 +23,7 @@ import { LogoutPage } from './login/LogoutPage'
 import { MagicLinkCallback } from './login/MagicLinkCallback'
 import { MCPSettingsPage } from './mcp-settings/MCPSettingsPage'
 import { MemoryPage } from './memory/MemoryPage'
+import { NanoClawPage } from './nanoclaw/NanoClawPage'
 import { ProfilePage } from './profile/ProfilePage'
 import { ScheduledTasksPage } from './scheduled-tasks/ScheduledTasksPage'
 import { SearchProviderPage } from './search-provider/SearchProviderPage'
@@ -100,6 +101,7 @@ export const App: FC = () => {
             <Route path="ai" element={<AISettingsPage key="ai" />} />
             <Route path="chat" element={<LlmHubPage />} />
             <Route path="mcp" element={<MCPSettingsPage />} />
+            <Route path="nanoclaw" element={<NanoClawPage />} />
             <Route path="customization" element={<CustomizationPage />} />
             <Route path="search" element={<SearchProviderPage />} />
             <Route path="survey" element={<SurveyPage {...surveyParams} />} />

@@ -50,3 +50,16 @@ export type RemoteSkillCatalog = {
   version: number
   skills: RemoteSkillEntry[]
 }
+
+export type CatalogSkillSource = 'browseros-remote' | 'openai-curated'
+
+export type CatalogSkillEntry = {
+  source: CatalogSkillSource
+  id: string
+  name: string
+  description: string
+  version?: string
+  installed: boolean
+  builtIn: boolean
+  openClawCompatible: boolean
+}

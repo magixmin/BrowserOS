@@ -9,6 +9,7 @@ import {
   useState,
 } from 'react'
 import { TabPickerPopover } from '@/components/elements/tab-picker-popover'
+import { useI18n } from '@/lib/i18n/useI18n'
 import { cn } from '@/lib/utils'
 import type { VoiceInputState } from '@/lib/voice/useVoiceInput'
 import type { ChatMode } from './chatTypes'
@@ -55,6 +56,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
     },
     ref,
   ) => {
+    const { t } = useI18n()
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const [mentionState, setMentionState] = useState<MentionState>({
       isOpen: false,
@@ -370,12 +372,12 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
             onKeyDown={handleKeyDown}
             placeholder={
               voice?.isTranscribing
-                ? 'Transcribing...'
+                ? t('chat.input.transcribing')
                 : mode === 'chat'
-                  ? 'Ask about this page...'
+                  ? t('chat.input.chatPlaceholder')
                   : mode === 'lobster'
-                    ? 'Ask Lobster to search, plan, and do the work...'
-                    : 'What should I do?'
+                    ? t('chat.input.lobsterPlaceholder')
+                    : t('chat.input.agentPlaceholder')
             }
             disabled={voice?.isTranscribing}
             rows={1}

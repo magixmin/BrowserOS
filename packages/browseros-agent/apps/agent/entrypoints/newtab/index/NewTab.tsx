@@ -53,6 +53,7 @@ import { useSyncRemoteIntegrations } from '@/lib/mcp/useSyncRemoteIntegrations'
 import { openSidePanelWithSearch } from '@/lib/messaging/sidepanel/openSidepanelWithSearch'
 import { track } from '@/lib/metrics/track'
 import { PRODUCT_NAME } from '@/lib/constants/product'
+import { useI18n } from '@/lib/i18n/useI18n'
 import { cn } from '@/lib/utils'
 import { useWorkspace } from '@/lib/workspace/use-workspace'
 import { ImportDataHint } from './ImportDataHint'
@@ -80,6 +81,7 @@ interface MentionState {
  * @public
  */
 export const NewTab = () => {
+  const { t } = useI18n()
   const activeHint = useActiveHint()
   const navigate = useNavigate()
   const [inputValue, setInputValue] = useState('')
@@ -130,7 +132,10 @@ export const NewTab = () => {
     query: inputValue,
     selectedTabs,
   })
-  const searchPlaceholder = `Ask ${PRODUCT_NAME} or search ${providerConfig.name}...`
+  const searchPlaceholder = t('newtab.search.placeholder', {
+    product: PRODUCT_NAME,
+    provider: providerConfig.name,
+  })
 
   const {
     isOpen,

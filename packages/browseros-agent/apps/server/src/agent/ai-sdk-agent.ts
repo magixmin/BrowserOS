@@ -27,6 +27,8 @@ import { CHAT_MODE_ALLOWED_TOOLS } from './chat-mode'
 import { createCompactionPrepareStep, type StepWithUsage } from './compaction'
 import { createContextOverflowMiddleware } from './context-overflow-middleware'
 import { buildMcpServerSpecs, createMcpClients } from './mcp-builder'
+import { NanoClawExecutor } from './nanoclaw/executor'
+import { createNanoClawToolLoopAgent } from './nanoclaw/orchestrator'
 import {
   getMessageNormalizationOptions,
   normalizeMessagesForModel,
@@ -35,6 +37,21 @@ import { buildSystemPrompt } from './prompt'
 import { createLanguageModel } from './provider-factory'
 import { buildBrowserToolSet } from './tool-adapter'
 import type { ResolvedAgentConfig } from './types'
+
+const IRONCLAW_BLOCKED_TOOLS = new Set([
+  'filesystem_bash',
+  'memory_write',
+  'memory_update_core',
+  'soul_update',
+])
+
+function applyIronClawToolPolicy<T extends Record<string, unknown>>(tools: T): T {
+  const filtered = { ...tools }
+  for (const toolName of IRONCLAW_BLOCKED_TOOLS) {
+    delete filtered[toolName as keyof T]
+  }
+  return filtered
+}
 
 export interface AiSdkAgentConfig {
   resolvedConfig: ResolvedAgentConfig
@@ -46,9 +63,11 @@ export interface AiSdkAgentConfig {
   aiSdkDevtoolsEnabled?: boolean
 }
 
+type AnyToolLoopAgent = ToolLoopAgent<any, any, any>
+
 export class AiSdkAgent {
   private constructor(
-    private _agent: ToolLoopAgent,
+    private _agent: AnyToolLoopAgent,
     private _messages: UIMessage[],
     private _mcpClients: Array<{ close(): Promise<void> }>,
     private conversationId: string,
@@ -123,11 +142,15 @@ export class AiSdkAgent {
     const memoryTools = config.resolvedConfig.chatMode
       ? {}
       : buildMemoryToolSet()
-    const tools = {
+    let tools = {
       ...browserTools,
       ...externalMcpTools,
       ...filesystemTools,
       ...memoryTools,
+    }
+
+    if (config.resolvedConfig.safetyBackend === 'ironclaw') {
+      tools = applyIronClawToolPolicy(tools)
     }
 
     if (
@@ -195,23 +218,43 @@ export class AiSdkAgent {
     const isChatGPTPro =
       config.resolvedConfig.provider === LLM_PROVIDERS.CHATGPT_PRO
 
-    const agent = new ToolLoopAgent({
-      model,
-      instructions,
-      tools,
-      stopWhen: [stepCountIs(AGENT_LIMITS.MAX_TURNS)],
-      prepareStep,
-      ...(isChatGPTPro && {
-        providerOptions: {
-          openai: {
-            store: false,
-            reasoningEffort: config.resolvedConfig.reasoningEffort || 'high',
-            reasoningSummary: config.resolvedConfig.reasoningSummary || 'auto',
-            include: ['reasoning.encrypted_content'],
-          },
-        },
-      }),
-    })
+    const useNanoClaw = config.resolvedConfig.brainBackend === 'nanoclaw'
+
+    const agent = useNanoClaw
+      ? createNanoClawToolLoopAgent(config.resolvedConfig, {
+          executor: new NanoClawExecutor(
+            {
+              ...config.resolvedConfig,
+              brainBackend: 'native',
+            },
+            {
+              browser: config.browser,
+              registry: config.registry,
+              klavisClient: config.klavisClient,
+              browserosId: config.browserosId,
+              aiSdkDevtoolsEnabled: config.aiSdkDevtoolsEnabled,
+            },
+          ),
+        })
+      : new ToolLoopAgent({
+          model,
+          instructions,
+          tools,
+          stopWhen: [stepCountIs(AGENT_LIMITS.MAX_TURNS)],
+          prepareStep,
+          ...(isChatGPTPro && {
+            providerOptions: {
+              openai: {
+                store: false,
+                reasoningEffort:
+                  config.resolvedConfig.reasoningEffort || 'high',
+                reasoningSummary:
+                  config.resolvedConfig.reasoningSummary || 'auto',
+                include: ['reasoning.encrypted_content'],
+              },
+            },
+          }),
+        })
 
     logger.info('Agent session created (v2)', {
       conversationId: config.resolvedConfig.conversationId,
@@ -228,7 +271,7 @@ export class AiSdkAgent {
     )
   }
 
-  get toolLoopAgent(): ToolLoopAgent {
+  get toolLoopAgent(): AnyToolLoopAgent {
     return this._agent
   }
 

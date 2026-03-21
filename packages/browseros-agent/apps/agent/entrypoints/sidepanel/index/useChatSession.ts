@@ -28,6 +28,7 @@ import { useLlmProviders } from '@/lib/llm-providers/useLlmProviders'
 import { track } from '@/lib/metrics/track'
 import { searchActionsStorage } from '@/lib/search-actions/searchActionsStorage'
 import { selectedTextStorage } from '@/lib/selected-text/selectedTextStorage'
+import { nanoclawConfigStorage } from '@/lib/nanoclaw/storage'
 import { stopAgentStorage } from '@/lib/stop-agent/stop-agent-storage'
 import { selectedWorkspaceStorage } from '@/lib/workspace/workspace-storage'
 import type { ChatMode } from './chatTypes'
@@ -166,6 +167,11 @@ export const useChatSession = (options?: ChatSessionOptions) => {
 
   const modeRef = useRef<ChatMode>(mode)
   const textToActionRef = useRef<Map<string, ChatAction>>(textToAction)
+  const nanoClawConfigRef = useRef<{
+    brainBackend: 'native' | 'nanoclaw'
+    safetyBackend: 'native' | 'ironclaw'
+    swarmMaxAgents: number
+  } | null>(null)
   const workingDirRef = useRef<string | undefined>(undefined)
   const selectionMapRef = useRef<
     Record<string, { text: string; url: string; title: string }>
@@ -202,6 +208,16 @@ export const useChatSession = (options?: ChatSessionOptions) => {
 
     const unwatch = selectedWorkspaceStorage.watch((folder) => {
       workingDirRef.current = folder?.path
+    })
+    return () => unwatch()
+  }, [])
+
+  useEffect(() => {
+    nanoclawConfigStorage.getValue().then((value) => {
+      nanoClawConfigRef.current = value
+    })
+    const unwatch = nanoclawConfigStorage.watch((value) => {
+      nanoClawConfigRef.current = value
     })
     return () => unwatch()
   }, [])
@@ -245,6 +261,7 @@ export const useChatSession = (options?: ChatSessionOptions) => {
         const provider =
           selectedLlmProviderRef.current ?? createDefaultBrowserOSProvider()
         const currentMode = modeRef.current
+        const nanoClawConfig = nanoClawConfigRef.current
         const enabledMcpServers = enabledMcpServersRef.current
         const customMcpServers = enabledCustomServersRef.current
 
@@ -330,6 +347,12 @@ export const useChatSession = (options?: ChatSessionOptions) => {
             conversationId: conversationIdRef.current,
             model: provider?.modelId ?? 'default',
             mode: currentMode,
+            ...(currentMode === 'lobster' &&
+              nanoClawConfig && {
+                brainBackend: nanoClawConfig.brainBackend,
+                safetyBackend: nanoClawConfig.safetyBackend,
+                swarmMaxAgents: nanoClawConfig.swarmMaxAgents,
+              }),
             contextWindowSize: provider?.contextWindow,
             temperature: provider?.temperature,
             // Azure-specific

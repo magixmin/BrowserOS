@@ -1,5 +1,6 @@
 import { Bot, MessageSquare, MousePointer2, Sparkles } from 'lucide-react'
 import type { FC } from 'react'
+import { useI18n } from '@/lib/i18n/useI18n'
 import { cn } from '@/lib/utils'
 import type { ChatMode } from './chatTypes'
 
@@ -12,6 +13,7 @@ export const ChatModeToggle: FC<ChatModeToggleProps> = ({
   mode,
   onModeChange,
 }) => {
+  const { t } = useI18n()
   const modes: Array<{
     id: ChatMode
     label: string
@@ -20,21 +22,21 @@ export const ChatModeToggle: FC<ChatModeToggleProps> = ({
   }> = [
     {
       id: 'chat',
-      label: 'Chat',
+      label: t('mode.chat.label'),
       icon: MessageSquare,
-      title: 'Read-only page chat',
+      title: t('mode.chat.title'),
     },
     {
       id: 'agent',
-      label: 'Agent',
+      label: t('mode.agent.label'),
       icon: MousePointer2,
-      title: 'Full browser automation',
+      title: t('mode.agent.title'),
     },
     {
       id: 'lobster',
-      label: 'Lobster',
+      label: t('mode.lobster.label'),
       icon: Sparkles,
-      title: 'High-agency browser operator',
+      title: t('mode.lobster.title'),
     },
   ]
 

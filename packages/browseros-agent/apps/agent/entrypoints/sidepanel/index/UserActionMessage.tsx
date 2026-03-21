@@ -5,6 +5,7 @@ import type {
   BrowserOSAction,
   ChatAction,
 } from '@/lib/chat-actions/types'
+import { useI18n } from '@/lib/i18n/useI18n'
 
 interface UserActionMessageProps {
   action: ChatAction
@@ -64,6 +65,7 @@ const AITabActionCard: FC<{ action: AITabAction }> = ({ action }) => {
 }
 
 const BrowserOSActionCard: FC<{ action: BrowserOSAction }> = ({ action }) => {
+  const { t } = useI18n()
   const isAgent = action.mode === 'agent'
   const isLobster = action.mode === 'lobster'
 
@@ -80,7 +82,11 @@ const BrowserOSActionCard: FC<{ action: BrowserOSAction }> = ({ action }) => {
         <div className="flex-1">
           <div className="mb-0.5 flex items-center gap-1.5">
             <span className="rounded bg-[var(--accent-orange)]/10 px-1.5 py-0.5 font-medium text-[10px] text-[var(--accent-orange)] uppercase">
-              {isLobster ? 'Lobster' : isAgent ? 'Agent' : 'Chat'}
+              {isLobster
+                ? t('chat.badge.lobster')
+                : isAgent
+                  ? t('chat.badge.agent')
+                  : t('chat.badge.chat')}
             </span>
           </div>
           <div className="text-foreground text-sm">{action.message}</div>

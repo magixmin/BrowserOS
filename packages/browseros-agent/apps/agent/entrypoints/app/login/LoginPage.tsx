@@ -22,10 +22,12 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { signIn, useSession } from '@/lib/auth/auth-client'
 import { PRODUCT_NAME } from '@/lib/constants/product'
+import { useI18n } from '@/lib/i18n/useI18n'
 
 type LoginState = 'idle' | 'loading' | 'magic-link-sent' | 'error'
 
 export const LoginPage: FC = () => {
+  const { t } = useI18n()
   const navigate = useNavigate()
   const { data: session, isPending } = useSession()
   const [email, setEmail] = useState('')
@@ -134,7 +136,9 @@ export const LoginPage: FC = () => {
             <ArrowLeft className="size-4" />
           </Button>
           <div className="flex-1 pr-9 text-center">
-            <CardTitle className="text-2xl">{`Welcome to ${PRODUCT_NAME}`}</CardTitle>
+            <CardTitle className="text-2xl">
+              {t('login.welcome', { product: PRODUCT_NAME })}
+            </CardTitle>
             <CardDescription>
               Sign in to your account to continue
             </CardDescription>

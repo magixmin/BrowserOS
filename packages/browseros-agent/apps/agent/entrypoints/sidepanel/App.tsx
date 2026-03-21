@@ -1,10 +1,12 @@
 import type { FC } from 'react'
 import { HashRouter, Route, Routes } from 'react-router'
+import { useI18n } from '@/lib/i18n/useI18n'
 import { ChatHistory } from './history/ChatHistory'
 import { Chat } from './index/Chat'
 import { ChatLayout } from './layout/ChatLayout'
 
 export const App: FC = () => {
+  const { t } = useI18n()
   return (
     <HashRouter>
       <Routes>
@@ -16,7 +18,7 @@ export const App: FC = () => {
           element={
             <ChatLayout
               sessionOptions={{ initialMode: 'lobster' }}
-              title="Lobster"
+              title={t('route.lobsterTitle')}
             />
           }
         >

@@ -46,6 +46,9 @@ export const ChatRequestSchema = AgentLLMConfigSchema.extend({
   userWorkingDir: z.string().min(1).optional(),
   supportsImages: z.boolean().optional().default(true),
   mode: z.enum(['chat', 'agent', 'lobster']).optional().default('agent'),
+  brainBackend: z.enum(['native', 'nanoclaw']).optional(),
+  safetyBackend: z.enum(['native', 'ironclaw']).optional(),
+  swarmMaxAgents: z.number().int().min(1).max(8).optional(),
   declinedApps: z.array(z.string()).optional(),
   selectedText: z.string().optional(),
   selectedTextSource: z

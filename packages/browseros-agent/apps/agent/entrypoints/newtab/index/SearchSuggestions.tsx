@@ -3,6 +3,7 @@ import { Search, Sparkles } from 'lucide-react'
 import { motion } from 'motion/react'
 import type { FC } from 'react'
 import { PRODUCT_NAME } from '@/lib/constants/product'
+import { useI18n } from '@/lib/i18n/useI18n'
 import { cn } from '@/lib/utils'
 import type { SuggestionItem, SuggestionSection } from './lib/suggestions/types'
 
@@ -29,6 +30,7 @@ const SuggestionItemRenderer: FC<{
   getItemProps: GetItemProps
   index: number
 }> = ({ item, isHighlighted, getItemProps, index }) => {
+  const { t } = useI18n()
   const baseClassName = cn(
     'ph-mask flex w-full items-center gap-3 rounded-lg p-3 text-left text-foreground text-sm transition-colors hover:bg-accent cursor-pointer',
     isHighlighted && 'bg-accent',
@@ -68,7 +70,9 @@ const SuggestionItemRenderer: FC<{
       return (
         <li className={baseClassName} {...getItemProps({ item, index })}>
           <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="flex-shrink-0 font-semibold">{`Ask ${PRODUCT_NAME}:`}</span>
+          <span className="flex-shrink-0 font-semibold">
+            {t('newtab.search.askProduct', { product: PRODUCT_NAME })}
+          </span>
           <span
             className="min-w-0 flex-1 truncate"
             title={item.message || 'Type a message...'}

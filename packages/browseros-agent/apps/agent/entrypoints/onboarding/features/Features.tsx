@@ -32,26 +32,29 @@ import {
   slackUrl,
 } from '@/lib/constants/productUrls'
 import { PRODUCT_NAME } from '@/lib/constants/product'
+import { useI18n } from '@/lib/i18n/useI18n'
 import { cn } from '@/lib/utils'
 import { BentoCard, type Feature } from './BentoCard'
 import { VideoFrame } from './VideoFrame'
 
-const features: Feature[] = [
+const getFeatures = (
+  t: (key: string, params?: Record<string, string | number>) => string,
+): Feature[] => [
   {
     id: 'agent',
     Icon: Bot,
-    tag: 'AI AGENT',
-    title: 'Built-in AI Agent',
-    description:
-      `Describe any task and watch ${PRODUCT_NAME} execute it—clicking, typing, and navigating for you.`,
-    detailedDescription:
-      `The ${PRODUCT_NAME} Agent turns your words into browser actions. Describe what you need in plain English—fill out this form, extract data from that page, navigate through these steps—and the agent handles the rest. It clicks buttons, types text, navigates between pages, and completes multi-step workflows automatically. Everything runs locally on your machine with your own API keys, so your data stays private.`,
+    tag: t('features.agent.tag'),
+    title: t('features.agent.title'),
+    description: t('features.agent.description', { product: PRODUCT_NAME }),
+    detailedDescription: t('features.agent.detail', {
+      product: PRODUCT_NAME,
+    }),
     highlights: [
-      'Multi-tab execution — run agents in multiple tabs simultaneously',
-      'Smart navigation — automatically finds and interacts with page elements',
-      'Form filling — completes forms with intelligent context understanding',
-      'Data extraction — pulls structured data from any webpage',
-      'Auto-save sessions — pick up where you left off from the Assistant panel',
+      t('features.agent.highlight1'),
+      t('features.agent.highlight2'),
+      t('features.agent.highlight3'),
+      t('features.agent.highlight4'),
+      t('features.agent.highlight5'),
     ],
     videoDuration: '2:22',
     gridClass: 'md:col-span-2',
@@ -60,17 +63,17 @@ const features: Feature[] = [
   {
     id: 'mcp-server',
     Icon: Plug,
-    tag: 'MCP',
-    title: `${PRODUCT_NAME} as MCP Server`,
-    description:
-      'Connect Claude Code, Gemini CLI, or any MCP client to control your browser with 31 tools.',
-    detailedDescription:
-      `${PRODUCT_NAME} includes a built-in MCP server that lets AI coding agents control your browser. Claude Code can open tabs, click elements, fill forms, take screenshots, and read page content—all through natural language commands. Unlike Chrome DevTools MCP which requires debug profiles and separate servers, ${PRODUCT_NAME} works out of the box. Just copy the URL from settings and connect.`,
+    tag: t('features.mcp.tag'),
+    title: t('features.mcp.title', { product: PRODUCT_NAME }),
+    description: t('features.mcp.description'),
+    detailedDescription: t('features.mcp.detail', {
+      product: PRODUCT_NAME,
+    }),
     highlights: [
-      'One-line setup — run `claude mcp add` with your server URL to connect',
-      '31 browser tools — tabs, clicks, typing, screenshots, bookmarks, history',
-      'Works everywhere — Claude Code, Gemini CLI, Codex, Claude Desktop',
-      'Authenticated access — extract data from logged-in pages like LinkedIn',
+      t('features.mcp.highlight1'),
+      t('features.mcp.highlight2'),
+      t('features.mcp.highlight3'),
+      t('features.mcp.highlight4'),
     ],
     videoDuration: '1:40',
     gridClass: 'md:col-span-1',
@@ -79,17 +82,15 @@ const features: Feature[] = [
   {
     id: 'workflows',
     Icon: GitBranch,
-    tag: 'AUTOMATION',
-    title: 'Visual Workflows',
-    description:
-      'Build reliable, repeatable automations with a visual graph builder.',
-    detailedDescription:
-      'Workflows turn complex browser tasks into reliable, reusable automations. Instead of hoping the agent figures out the right steps each time, you define the exact sequence in a visual graph. Describe what you want in chat, and the workflow agent generates the graph. Add loops, conditionals, and parallel branches. Save workflows and run them on-demand whenever you need.',
+    tag: t('features.workflows.tag'),
+    title: t('features.workflows.title'),
+    description: t('features.workflows.description'),
+    detailedDescription: t('features.workflows.detail'),
     highlights: [
-      'Chat-to-graph — describe your automation and get a visual workflow',
-      'Parallel execution — run multiple branches simultaneously',
-      'Loops & conditionals — handle complex logic with flow control',
-      'Save & reuse — run saved workflows on-demand, daily, or weekly',
+      t('features.workflows.highlight1'),
+      t('features.workflows.highlight2'),
+      t('features.workflows.highlight3'),
+      t('features.workflows.highlight4'),
     ],
     gridClass: 'md:col-span-1',
     videoUrl: WORKFLOWS_DEMO_URL || undefined,
@@ -97,17 +98,15 @@ const features: Feature[] = [
   {
     id: 'cowork',
     Icon: FolderOpen,
-    tag: 'FILES',
-    title: 'Cowork',
-    description:
-      'Give the agent access to local files. Research the web, then save reports to your computer.',
-    detailedDescription:
-      'Cowork lets the agent read and write files on your computer. Select a folder and the agent can read documents, write reports, and run shell commands—all while browsing the web. Research a topic online and generate an HTML report. Scrape product data and save it as a spreadsheet. The agent is sandboxed to your selected folder and cannot access anything outside it.',
+    tag: t('features.cowork.tag'),
+    title: t('features.cowork.title'),
+    description: t('features.cowork.description'),
+    detailedDescription: t('features.cowork.detail'),
     highlights: [
-      'Read & write files — create reports, spreadsheets, and markdown documents',
-      'Run shell commands — execute commands within your selected folder',
-      'Browser + files — combine web research with local file operations',
-      'Sandboxed security — agent can only access the folder you select',
+      t('features.cowork.highlight1'),
+      t('features.cowork.highlight2'),
+      t('features.cowork.highlight3'),
+      t('features.cowork.highlight4'),
     ],
     gridClass: 'md:col-span-2',
     videoUrl: COWORK_DEMO_URL || undefined,
@@ -115,17 +114,15 @@ const features: Feature[] = [
   {
     id: 'split-view',
     Icon: SplitSquareHorizontal,
-    tag: 'CORE',
-    title: 'Split-View Mode',
-    description:
-      'Open ChatGPT, Claude, or Gemini alongside any webpage. Compare responses in the LLM Hub.',
-    detailedDescription:
-      'Access AI chat on any webpage without switching tabs. Click the Chat button or press Alt+K to open a panel with Claude, ChatGPT, or Gemini right next to your current page. Copy page content, attach screenshots, and get answers in context. Open the LLM Hub (Cmd+Shift+U) to query multiple models simultaneously and compare their responses side-by-side.',
+    tag: t('features.split.tag'),
+    title: t('features.split.title'),
+    description: t('features.split.description'),
+    detailedDescription: t('features.split.detail'),
     highlights: [
-      'AI on any page — chat panel stays open as you browse',
-      'LLM Hub — compare responses from Claude, ChatGPT, and Gemini at once',
-      'Quick toggle — Alt+K opens chat, Alt+L switches providers',
-      'Copy & screenshot — grab page content or capture screenshots for context',
+      t('features.split.highlight1'),
+      t('features.split.highlight2'),
+      t('features.split.highlight3'),
+      t('features.split.highlight4'),
     ],
     gridClass: 'md:col-span-2',
     gifUrl: SPLIT_VIEW_GIF_URL,
@@ -133,17 +130,17 @@ const features: Feature[] = [
   {
     id: 'agentic-coding',
     Icon: Code2,
-    tag: 'DEV',
-    title: 'Agentic Coding',
-    description:
-      'Claude Code tests your web app, reads console errors, and fixes your code in one loop.',
-    detailedDescription:
-      `The killer workflow for frontend developers. Claude Code connects to ${PRODUCT_NAME}, opens your localhost app, clicks through the UI, reads console errors and network failures, then goes back to your codebase to fix the bugs—all in one continuous loop. No more switching between terminal and browser. No more copy-pasting error messages. Just describe the issue and let the agent debug it end-to-end.`,
+    tag: t('features.coding.tag'),
+    title: t('features.coding.title'),
+    description: t('features.coding.description'),
+    detailedDescription: t('features.coding.detail', {
+      product: PRODUCT_NAME,
+    }),
     highlights: [
-      'Test & fix loop — Claude navigates your app, finds bugs, and patches them',
-      'Console access — read browser console and network errors from your terminal',
-      'Screenshot debugging — Claude captures screenshots to understand visual issues',
-      'Rapid prototyping — build UIs faster with AI that sees your work',
+      t('features.coding.highlight1'),
+      t('features.coding.highlight2'),
+      t('features.coding.highlight3'),
+      t('features.coding.highlight4'),
     ],
     gridClass: 'md:col-span-1',
     videoUrl: AGENTIC_CODING_DEMO_URL || undefined,
@@ -154,7 +151,9 @@ const features: Feature[] = [
  * @public
  */
 export const FeaturesPage: FC = () => {
+  const { t } = useI18n()
   const [mounted, setMounted] = useState(false)
+  const features = getFeatures(t)
 
   useEffect(() => {
     setMounted(true)
@@ -181,7 +180,7 @@ export const FeaturesPage: FC = () => {
             {/* Header */}
             <div className="space-y-6">
               <PillIndicator
-                text="WELCOME"
+                text={t('features.welcome')}
                 className={`transition-all delay-100 duration-700 ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}
               />
 
@@ -193,10 +192,7 @@ export const FeaturesPage: FC = () => {
                     mounted ? 'scale-100 opacity-100' : 'scale-95 opacity-0',
                   )}
                 >
-                  Why Switch to{' '}
-                  <span className="text-[var(--accent-orange)]">
-                    {`${PRODUCT_NAME}?`}
-                  </span>
+                  {t('features.heroTitle', { product: PRODUCT_NAME })}
                 </h1>
                 <p
                   className={cn(
@@ -207,8 +203,7 @@ export const FeaturesPage: FC = () => {
                       : 'translate-y-4 opacity-0',
                   )}
                 >
-                  {`Watch our launch video to understand the vision of ${PRODUCT_NAME}`}
-                  and key features!
+                  {t('features.heroSubtitle', { product: PRODUCT_NAME })}
                 </p>
               </div>
             </div>
@@ -226,7 +221,7 @@ export const FeaturesPage: FC = () => {
               <video
                 className="h-full w-full"
                 src={BROWSER_OS_INTRO_VIDEO_URL}
-                title={`${PRODUCT_NAME} MCP Server Demonstration`}
+                title={t('features.heroVideoTitle', { product: PRODUCT_NAME })}
                 autoPlay
                 muted
                 loop
@@ -246,7 +241,7 @@ export const FeaturesPage: FC = () => {
         >
           <div className="text-center">
             <p className="mb-2 font-medium text-muted-foreground text-xs">
-              Scroll for Features
+              {t('features.scroll')}
             </p>
             <ArrowDown className="mx-auto h-6 w-6 text-[var(--accent-orange)]" />
           </div>
@@ -257,15 +252,14 @@ export const FeaturesPage: FC = () => {
       <section className="mx-auto max-w-7xl px-6 py-16 md:py-20">
         <div className="mb-12 space-y-3 text-center">
           <p className="font-semibold text-muted-foreground text-xs uppercase tracking-widest">
-            FEATURES
+            {t('features.sectionTitle')}
           </p>
           <h2 className="font-bold text-3xl tracking-tight md:text-4xl">
-            Explore What&apos;s{' '}
+            {t('features.exploreTitle')}{' '}
             <span className="text-[var(--accent-orange)]">Possible</span>
           </h2>
           <p className="mx-auto max-w-2xl text-muted-foreground">
-            Skim the highlights below, then click any card to see a focused
-            walkthrough with video and deeper details.
+            {t('features.exploreSubtitle')}
           </p>
         </div>
 
@@ -285,7 +279,7 @@ export const FeaturesPage: FC = () => {
 
         <div className="mt-8 text-center">
           <p className="text-muted-foreground text-sm">
-            💡 Tip: Click any card to open a focused walkthrough with video
+            {`💡 ${t('features.cardTip')}`}
           </p>
         </div>
       </section>
@@ -295,8 +289,7 @@ export const FeaturesPage: FC = () => {
           <div className="mb-8 flex items-center gap-3">
             <LinkIcon className="h-6 w-6 text-[var(--accent-orange)]" />
             <h2 className="font-bold text-3xl">
-              Join our community and help us improve{' '}
-              <span className="text-[var(--accent-orange)]">{`${PRODUCT_NAME}!`}</span>
+              {t('features.communityTitle', { product: PRODUCT_NAME })}
             </h2>
           </div>
 
@@ -317,10 +310,10 @@ export const FeaturesPage: FC = () => {
               </div>
               <div className="space-y-1">
                 <h3 className="font-semibold text-lg transition-colors group-hover:text-[var(--accent-orange)]">
-                  Join Discord
+                  {t('features.community.discord')}
                 </h3>
                 <p className="text-muted-foreground text-sm">
-                  To suggest features / provide feedback
+                  {t('features.community.feedback')}
                 </p>
               </div>
             </a>
@@ -341,10 +334,10 @@ export const FeaturesPage: FC = () => {
               </div>
               <div className="space-y-1">
                 <h3 className="font-semibold text-lg transition-colors group-hover:text-[var(--accent-orange)]">
-                  Join Slack
+                  {t('features.community.slack')}
                 </h3>
                 <p className="text-muted-foreground text-sm">
-                  To suggest features / provide feedback
+                  {t('features.community.feedback')}
                 </p>
               </div>
             </a>
@@ -365,10 +358,10 @@ export const FeaturesPage: FC = () => {
               </div>
               <div className="space-y-1">
                 <h3 className="font-semibold text-lg transition-colors group-hover:text-[var(--accent-orange)]">
-                  GitHub
+                  {t('features.community.github')}
                 </h3>
                 <p className="text-muted-foreground text-sm">
-                  Star our repository
+                  {t('features.community.star')}
                 </p>
               </div>
             </a>
@@ -385,9 +378,11 @@ export const FeaturesPage: FC = () => {
               </div>
               <div className="space-y-1">
                 <h3 className="font-semibold text-lg transition-colors group-hover:text-[var(--accent-orange)]">
-                  Documentation
+                  {t('features.community.docs')}
                 </h3>
-                <p className="text-muted-foreground text-sm">Learn more</p>
+                <p className="text-muted-foreground text-sm">
+                  {t('features.community.learn')}
+                </p>
               </div>
             </a>
           </div>
@@ -401,7 +396,7 @@ export const FeaturesPage: FC = () => {
             size="lg"
             className="bg-[var(--accent-orange)] text-white shadow-[var(--accent-orange)]/25 shadow-lg hover:bg-[var(--accent-orange)]/90"
           >
-            {`Start Using ${PRODUCT_NAME}`}
+            {t('features.startUsing', { product: PRODUCT_NAME })}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>

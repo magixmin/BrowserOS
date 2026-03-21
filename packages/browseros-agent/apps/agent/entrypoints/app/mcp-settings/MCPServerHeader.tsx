@@ -2,6 +2,7 @@ import { Check, Copy, ExternalLink, Globe, Server } from 'lucide-react'
 import { type FC, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { PRODUCT_MCP_NAME, PRODUCT_NAME } from '@/lib/constants/product'
+import { useI18n } from '@/lib/i18n/useI18n'
 
 interface MCPServerHeaderProps {
   serverUrl: string | null
@@ -22,6 +23,7 @@ export const MCPServerHeader: FC<MCPServerHeaderProps> = ({
   description = `Connect ${PRODUCT_NAME} to MCP clients like claude code, gemini and others.`,
   remoteAccessEnabled = false,
 }) => {
+  const { t } = useI18n()
   const [isCopied, setIsCopied] = useState(false)
 
   const handleCopy = async () => {
@@ -51,7 +53,7 @@ export const MCPServerHeader: FC<MCPServerHeaderProps> = ({
               rel="noopener noreferrer"
               className="flex items-center gap-1 text-muted-foreground text-sm transition-colors hover:text-[var(--accent-orange)]"
             >
-              Setup a client
+              {t('mcp.setupClient')}
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
           </div>
@@ -59,12 +61,12 @@ export const MCPServerHeader: FC<MCPServerHeaderProps> = ({
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <span className="whitespace-nowrap font-medium text-sm">
-              Server URL:
+              {t('mcp.serverUrl')}
             </span>
             <div className="flex flex-1 items-center gap-2">
               <div className="flex-1 rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm sm:max-w-md">
                 {isLoading ? (
-                  <span className="text-muted-foreground">Loading...</span>
+                  <span className="text-muted-foreground">{t('mcp.loading')}</span>
                 ) : error ? (
                   <span className="text-destructive">{error}</span>
                 ) : (
@@ -91,9 +93,7 @@ export const MCPServerHeader: FC<MCPServerHeaderProps> = ({
             <div className="mt-3 flex items-start gap-2 rounded-lg bg-muted/50 px-3 py-2">
               <Globe className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <p className="text-muted-foreground text-xs">
-                External access is enabled. To connect from another device,
-                replace <span className="font-mono">127.0.0.1</span> with this
-                machine's IP address.
+                {t('mcp.remoteAccess')}
               </p>
             </div>
           )}

@@ -41,6 +41,7 @@ export class ChatService {
     const llmConfig = await resolveLLMConfig(request, this.deps.browserosId)
 
     const workingDir = await this.resolveSessionDir(request)
+    const isLobsterMode = request.mode === 'lobster'
 
     const agentConfig: ResolvedAgentConfig = {
       conversationId: request.conversationId,
@@ -62,7 +63,12 @@ export class ChatService {
       workingDir,
       supportsImages: request.supportsImages,
       chatMode: request.mode === 'chat',
-      lobsterMode: request.mode === 'lobster',
+      lobsterMode: isLobsterMode,
+      brainBackend:
+        request.brainBackend ?? (isLobsterMode ? 'nanoclaw' : 'native'),
+      safetyBackend:
+        request.safetyBackend ?? (isLobsterMode ? 'ironclaw' : 'native'),
+      swarmMaxAgents: request.swarmMaxAgents ?? (isLobsterMode ? 5 : 1),
       isScheduledTask: request.isScheduledTask,
       declinedApps: request.declinedApps,
     }

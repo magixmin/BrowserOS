@@ -44,6 +44,12 @@ export interface ResolvedAgentConfig {
   chatMode?: boolean
   /** Lobster mode - high-agency browser operator mode. Defaults to false. */
   lobsterMode?: boolean
+  /** Brain backend - native tool loop or NanoClaw-style orchestrator. */
+  brainBackend?: 'native' | 'nanoclaw'
+  /** Safety backend - native/default rules or IronClaw-style safer tool policy. */
+  safetyBackend?: 'native' | 'ironclaw'
+  /** Max worker slots for swarm-style delegation. */
+  swarmMaxAgents?: number
   /** Scheduled task mode - disables tab grouping. Defaults to false. */
   isScheduledTask?: boolean
   /** Apps the user previously declined to connect via MCP (chose "do it manually"). */
