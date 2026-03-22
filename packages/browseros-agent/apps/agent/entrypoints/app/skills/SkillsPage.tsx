@@ -29,8 +29,6 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { PRODUCT_NAME } from '@/lib/constants/product'
 import { useI18n } from '@/lib/i18n/useI18n'
-import { SkillMarketplaceSection } from './SkillMarketplaceSection'
-import { useSkillCatalog } from './useSkillCatalog'
 import { type SkillDetail, type SkillMeta, useSkills } from './useSkills'
 
 const loadingSkillCards = [
@@ -54,11 +52,6 @@ export const SkillsPage: FC = () => {
     deleteSkill,
     fetchSkillDetail,
   } = useSkills()
-  const {
-    skills: catalogSkills,
-    installSkill,
-    installing,
-  } = useSkillCatalog()
 
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingSkill, setEditingSkill] = useState<SkillDetail | null>(null)
@@ -119,30 +112,12 @@ export const SkillsPage: FC = () => {
       ) : null}
 
       {!isLoading && !error && skills.length > 0 ? (
-        <div className="space-y-6">
-          <SkillSections
-            skills={skills}
-            onEdit={handleEdit}
-            onDelete={(skill) => setSkillToDelete(skill)}
-            onToggle={handleToggle}
-          />
-          <SkillMarketplaceSection
-            skills={catalogSkills}
-            installingId={installing}
-            onInstall={async (input) => {
-              try {
-                await installSkill(input)
-                toast.success(`Installed skill: ${input.id}`)
-              } catch (err) {
-                toast.error(
-                  err instanceof Error
-                    ? err.message
-                    : 'Failed to install skill',
-                )
-              }
-            }}
-          />
-        </div>
+        <SkillSections
+          skills={skills}
+          onEdit={handleEdit}
+          onDelete={(skill) => setSkillToDelete(skill)}
+          onToggle={handleToggle}
+        />
       ) : null}
 
       <SkillDialog

@@ -2,6 +2,7 @@ import {
   Brain,
   CalendarClock,
   Home,
+  LibraryBig,
   PlugZap,
   Settings,
   Sparkles,
@@ -43,6 +44,12 @@ const primaryNavItems: NavItem[] = [
     name: 'Skills',
     to: '/home/skills',
     icon: Wand2,
+    feature: Feature.SKILLS_SUPPORT,
+  },
+  {
+    name: 'Skills Marketplace',
+    to: '/home/skills-marketplace',
+    icon: LibraryBig,
     feature: Feature.SKILLS_SUPPORT,
   },
   {

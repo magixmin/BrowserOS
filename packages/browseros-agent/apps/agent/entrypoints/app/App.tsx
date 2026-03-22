@@ -27,6 +27,7 @@ import { NanoClawPage } from './nanoclaw/NanoClawPage'
 import { ProfilePage } from './profile/ProfilePage'
 import { ScheduledTasksPage } from './scheduled-tasks/ScheduledTasksPage'
 import { SearchProviderPage } from './search-provider/SearchProviderPage'
+import { SkillsMarketplacePage } from './skills/SkillsMarketplacePage'
 import { SkillsPage } from './skills/SkillsPage'
 import { SoulPage } from './soul/SoulPage'
 import { WorkflowsPageWrapper } from './workflows/WorkflowsPageWrapper'
@@ -52,6 +53,7 @@ const OptionsRedirect: FC = () => {
     search: '/settings/search',
     soul: '/home/soul',
     skills: '/home/skills',
+    'skills-marketplace': '/home/skills-marketplace',
     'jtbd-agent': '/settings/survey',
     workflows: '/workflows',
     scheduled: '/scheduled',
@@ -85,6 +87,10 @@ export const App: FC = () => {
             <Route path="personalize" element={<Personalize />} />
             <Route path="soul" element={<SoulPage />} />
             <Route path="skills" element={<SkillsPage />} />
+            <Route
+              path="skills-marketplace"
+              element={<SkillsMarketplacePage />}
+            />
             <Route path="memory" element={<MemoryPage />} />
           </Route>
 
