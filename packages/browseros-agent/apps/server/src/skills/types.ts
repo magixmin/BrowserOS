@@ -56,6 +56,8 @@ export type CatalogSkillSource =
   | 'openai-curated'
   | 'openclaw-clawhub'
 
+export type CompatibilityTier = 'high' | 'medium' | 'low'
+
 export type CatalogSkillEntry = {
   source: CatalogSkillSource
   id: string
@@ -66,6 +68,7 @@ export type CatalogSkillEntry = {
   builtIn: boolean
   openClawCompatible: boolean
   compatibilityScore: number
+  compatibilityTier: CompatibilityTier
   compatibilityReasons: string[]
   frontmatterPreview: Record<string, unknown>
   contentPreview: string[]

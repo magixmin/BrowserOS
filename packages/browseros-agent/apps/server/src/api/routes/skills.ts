@@ -24,7 +24,11 @@ const UpdateSkillSchema = z.object({
 })
 
 const InstallMarketplaceSkillSchema = z.object({
-  source: z.enum(['browseros-remote', 'openai-curated']),
+  source: z.enum([
+    'browseros-remote',
+    'openai-curated',
+    'openclaw-clawhub',
+  ]),
   id: z.string().min(1).max(128),
 })
 
