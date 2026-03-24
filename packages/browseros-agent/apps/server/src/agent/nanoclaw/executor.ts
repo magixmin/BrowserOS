@@ -1,19 +1,23 @@
-import { randomUUID } from 'node:crypto'
-import type { ToolRegistry } from '../../tools/tool-registry'
-import type { Browser } from '../../browser/browser'
+import { createMCPClient } from '@ai-sdk/mcp'
+import { TIMEOUTS } from '@browseros/shared/constants/timeouts'
 import type { BrowserContext } from '@browseros/shared/schemas/browser-context'
+import { stepCountIs, ToolLoopAgent } from 'ai'
 import type { KlavisClient } from '../../lib/clients/klavis/klavis-client'
+import { logger } from '../../lib/logger'
+import { formatBrowserContext } from '../format-message'
+import { createLanguageModel } from '../provider-factory'
 import type { ResolvedAgentConfig } from '../types'
-import { AiSdkAgent } from '../ai-sdk-agent'
 import type { ExecutorResult } from './types'
 
-const EXECUTOR_SYSTEM_PROMPT = `You are a NanoClaw browser worker. You execute one focused browser goal and then stop.
+const EXECUTOR_SYSTEM_PROMPT = `You are a NanoClaw browser worker. You execute one focused goal and stop.
 
 Rules:
+- Use only MCP tools available in this session. Do not call any internal BrowserOS agent loop.
+- If the task can be completed without opening or creating a browser page, answer directly.
+- Open or create browser pages only when the task actually requires web interaction.
 - Complete only the delegated goal.
-- Use browser and connected app tools to accomplish the goal.
 - Do not do extra browsing after the goal is complete.
-- Finish with a short factual observation: what you did, what the page/app now shows, and the current URL if relevant.`
+- Finish with a short factual observation: what you did, what MCP/browser state now shows, and the current URL if relevant.`
 
 const IRONCLAW_EXECUTOR_PROMPT = `IronClaw safety is active.
 
@@ -24,8 +28,10 @@ Rules:
 - If a task would submit payment, transfer money, delete data, or irreversibly modify accounts, stop and report the blocker instead of guessing.`
 
 export interface NanoClawExecutorDeps {
-  browser: Browser
-  registry: ToolRegistry
+  localMcpUrl: string
+  browserContext?: BrowserContext
+  // Kept for compatibility with current call sites; NanoClaw executor no longer
+  // uses the native browser agent directly.
   klavisClient?: KlavisClient
   browserosId?: string
   aiSdkDevtoolsEnabled?: boolean
@@ -41,9 +47,8 @@ export class NanoClawExecutor {
     instruction: string,
     signal?: AbortSignal,
   ): Promise<ExecutorResult> {
-    let hiddenWindowId: number | undefined
-    let pageId: number | undefined
-    let agent: AiSdkAgent | null = null
+    let client: { close(): Promise<void>; tools(): Promise<Record<string, unknown>> } | null =
+      null
     const toolsUsed = new Set<string>()
     let currentUrl = ''
     let actionsPerformed = 0
@@ -51,45 +56,61 @@ export class NanoClawExecutor {
     let status: ExecutorResult['status'] = 'done'
 
     try {
-      const windowInfo = await this.deps.browser.createWindow({ hidden: true })
-      hiddenWindowId = windowInfo.windowId
-      pageId = await this.deps.browser.newPage('about:blank', {
-        windowId: hiddenWindowId,
-      })
-
-      const browserContext: BrowserContext = {
-        windowId: hiddenWindowId,
-        activeTab: {
-          id: pageId,
-          pageId,
-          url: 'about:blank',
-          title: 'NanoClaw Worker',
-        },
-      }
-
+      const toolContext = formatBrowserContext(this.deps.browserContext)
       const executorPrompt =
         this.configTemplate.safetyBackend === 'ironclaw'
           ? `${EXECUTOR_SYSTEM_PROMPT}\n\n${IRONCLAW_EXECUTOR_PROMPT}`
           : EXECUTOR_SYSTEM_PROMPT
 
-      agent = await AiSdkAgent.create({
-        resolvedConfig: {
-          ...this.configTemplate,
-          conversationId: randomUUID(),
-          lobsterMode: false,
-          brainBackend: 'native',
-          userSystemPrompt: executorPrompt,
-        },
-        browser: this.deps.browser,
-        registry: this.deps.registry,
-        browserContext,
-        klavisClient: this.deps.klavisClient,
-        browserosId: this.deps.browserosId,
-        aiSdkDevtoolsEnabled: this.deps.aiSdkDevtoolsEnabled,
+      const model = createLanguageModel(this.configTemplate)
+
+      client = await Promise.race([
+        createMCPClient({
+          transport: {
+            type: 'http',
+            url: this.deps.localMcpUrl,
+            headers: { 'X-BrowserOS-Source': 'nanoclaw-worker' },
+          },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () =>
+              reject(
+                new Error(
+                  `NanoClaw MCP connection timed out after ${TIMEOUTS.MCP_CLIENT_CONNECT}ms`,
+                ),
+              ),
+            TIMEOUTS.MCP_CLIENT_CONNECT,
+          ),
+        ),
+      ])
+
+      const mcpTools = await Promise.race([
+        client.tools(),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () =>
+              reject(
+                new Error(
+                  `NanoClaw MCP tool discovery timed out after ${TIMEOUTS.MCP_CLIENT_CONNECT}ms`,
+                ),
+              ),
+            TIMEOUTS.MCP_CLIENT_CONNECT,
+          ),
+        ),
+      ])
+
+      const agent = new ToolLoopAgent({
+        model,
+        instructions: executorPrompt,
+        tools: mcpTools as Record<string, unknown>,
+        stopWhen: [stepCountIs(15)],
       })
 
-      const result = await (agent.toolLoopAgent as any).generate({
-        prompt: instruction,
+      const prompt = `${toolContext}${instruction}`.trim()
+
+      const result = await (agent as any).generate({
+        prompt,
         abortSignal: signal,
         experimental_onToolCallStart: ({ toolCall }: any) => {
           toolsUsed.add(toolCall.toolName)
@@ -108,12 +129,6 @@ export class NanoClawExecutor {
 
       observation =
         result.text?.trim() || observation || 'Worker completed with no output.'
-
-      if (pageId !== undefined) {
-        const pages = await this.deps.browser.listPages()
-        const currentPage = pages.find((page) => page.pageId === pageId)
-        currentUrl = currentPage?.url || currentUrl
-      }
     } catch (error) {
       if (signal?.aborted) {
         status = 'timeout'
@@ -122,12 +137,12 @@ export class NanoClawExecutor {
       }
       observation =
         error instanceof Error ? error.message : 'Worker execution failed'
+      logger.warn('NanoClaw MCP worker failed', {
+        error: observation,
+      })
     } finally {
-      if (agent) {
-        await agent.dispose().catch(() => {})
-      }
-      if (hiddenWindowId !== undefined) {
-        await this.deps.browser.closeWindow(hiddenWindowId).catch(() => {})
+      if (client) {
+        await client.close().catch(() => {})
       }
     }
 

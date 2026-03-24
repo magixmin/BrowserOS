@@ -28,6 +28,7 @@ export interface ChatServiceDeps {
   klavisClient: KlavisClient
   browser: Browser
   registry: ToolRegistry
+  localMcpUrl: string
   browserosId?: string
   aiSdkDevtoolsEnabled?: boolean
 }
@@ -125,6 +126,7 @@ export class ChatService {
         resolvedConfig: agentConfig,
         browser: this.deps.browser,
         registry: this.deps.registry,
+        localMcpUrl: this.deps.localMcpUrl,
         browserContext,
         klavisClient: this.deps.klavisClient,
         browserosId: this.deps.browserosId,
@@ -172,6 +174,7 @@ export class ChatService {
         resolvedConfig: agentConfig,
         browser: this.deps.browser,
         registry: this.deps.registry,
+        localMcpUrl: this.deps.localMcpUrl,
         browserContext,
         klavisClient: this.deps.klavisClient,
         browserosId: this.deps.browserosId,

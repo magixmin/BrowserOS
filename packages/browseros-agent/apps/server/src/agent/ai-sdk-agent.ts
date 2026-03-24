@@ -57,6 +57,7 @@ export interface AiSdkAgentConfig {
   resolvedConfig: ResolvedAgentConfig
   browser: Browser
   registry: ToolRegistry
+  localMcpUrl: string
   browserContext?: BrowserContext
   klavisClient?: KlavisClient
   browserosId?: string
@@ -228,8 +229,8 @@ export class AiSdkAgent {
               brainBackend: 'native',
             },
             {
-              browser: config.browser,
-              registry: config.registry,
+              localMcpUrl: config.localMcpUrl,
+              browserContext: config.browserContext,
               klavisClient: config.klavisClient,
               browserosId: config.browserosId,
               aiSdkDevtoolsEnabled: config.aiSdkDevtoolsEnabled,

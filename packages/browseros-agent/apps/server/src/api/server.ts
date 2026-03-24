@@ -148,6 +148,7 @@ export async function createHttpServer(config: HttpServerConfig) {
       createChatRoutes({
         browser,
         registry,
+        localMcpUrl: `http://127.0.0.1:${port}/mcp`,
         browserosId,
         rateLimiter,
         aiSdkDevtoolsEnabled: config.aiSdkDevtoolsEnabled,

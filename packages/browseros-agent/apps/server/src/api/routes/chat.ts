@@ -16,6 +16,7 @@ import { ConversationIdParamSchema } from '../utils/validation'
 interface ChatRouteDeps {
   browser: Browser
   registry: ToolRegistry
+  localMcpUrl: string
   browserosId?: string
   rateLimiter?: RateLimiter
   aiSdkDevtoolsEnabled?: boolean
@@ -31,6 +32,7 @@ export function createChatRoutes(deps: ChatRouteDeps) {
     klavisClient,
     browser: deps.browser,
     registry: deps.registry,
+    localMcpUrl: deps.localMcpUrl,
     browserosId,
     aiSdkDevtoolsEnabled: deps.aiSdkDevtoolsEnabled,
   })
