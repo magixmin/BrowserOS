@@ -18,6 +18,13 @@ export interface ProviderConfig {
   sessionToken?: string
 }
 
+export interface NovaClawRuntimeConfig {
+  enabled: boolean
+  brainBackend: 'native' | 'nanoclaw'
+  safetyBackend: 'native' | 'ironclaw'
+  swarmMaxAgents: number
+}
+
 export interface ResolvedAgentConfig {
   conversationId: string
   provider: LLMProvider
@@ -42,13 +49,13 @@ export interface ResolvedAgentConfig {
   evalMode?: boolean
   /** Chat mode - restricts to read-only tools (no browser automation). Defaults to false. */
   chatMode?: boolean
-  /** Lobster mode - high-agency browser operator mode. Defaults to false. */
+  /** Internal compatibility flag for NovaClaw mode. Defaults to false. */
   lobsterMode?: boolean
-  /** Brain backend - native tool loop or NanoClaw-style orchestrator. */
+  /** NovaClaw brain backend - native tool loop or NanoClaw-style orchestrator. */
   brainBackend?: 'native' | 'nanoclaw'
-  /** Safety backend - native/default rules or IronClaw-style safer tool policy. */
+  /** NovaClaw safety backend - native/default rules or IronClaw-style safer tool policy. */
   safetyBackend?: 'native' | 'ironclaw'
-  /** Max worker slots for swarm-style delegation. */
+  /** NovaClaw max worker slots for swarm-style delegation. */
   swarmMaxAgents?: number
   /** Scheduled task mode - disables tab grouping. Defaults to false. */
   isScheduledTask?: boolean

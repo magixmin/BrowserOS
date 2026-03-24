@@ -23,7 +23,7 @@ import { LogoutPage } from './login/LogoutPage'
 import { MagicLinkCallback } from './login/MagicLinkCallback'
 import { MCPSettingsPage } from './mcp-settings/MCPSettingsPage'
 import { MemoryPage } from './memory/MemoryPage'
-import { NanoClawPage } from './nanoclaw/NanoClawPage'
+import { NovaClawPage } from './nanoclaw/NanoClawPage'
 import { ProfilePage } from './profile/ProfilePage'
 import { ScheduledTasksPage } from './scheduled-tasks/ScheduledTasksPage'
 import { SearchProviderPage } from './search-provider/SearchProviderPage'
@@ -49,6 +49,8 @@ const OptionsRedirect: FC = () => {
     chat: '/settings/chat',
     'connect-mcp': '/connect-apps',
     mcp: '/settings/mcp',
+    nanoclaw: '/settings/novaclaw',
+    novaclaw: '/settings/novaclaw',
     customization: '/settings/customization',
     search: '/settings/search',
     soul: '/home/soul',
@@ -107,7 +109,11 @@ export const App: FC = () => {
             <Route path="ai" element={<AISettingsPage key="ai" />} />
             <Route path="chat" element={<LlmHubPage />} />
             <Route path="mcp" element={<MCPSettingsPage />} />
-            <Route path="nanoclaw" element={<NanoClawPage />} />
+            <Route path="novaclaw" element={<NovaClawPage />} />
+            <Route
+              path="nanoclaw"
+              element={<Navigate to="/settings/novaclaw" replace />}
+            />
             <Route path="customization" element={<CustomizationPage />} />
             <Route path="search" element={<SearchProviderPage />} />
             <Route path="survey" element={<SurveyPage {...surveyParams} />} />

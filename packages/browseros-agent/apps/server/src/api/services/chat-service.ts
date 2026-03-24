@@ -11,7 +11,10 @@ import { AiSdkAgent } from '../../agent/ai-sdk-agent'
 import { formatUserMessage } from '../../agent/format-message'
 import { filterValidMessages } from '../../agent/message-validation'
 import type { SessionStore } from '../../agent/session-store'
-import type { ResolvedAgentConfig } from '../../agent/types'
+import type {
+  NovaClawRuntimeConfig,
+  ResolvedAgentConfig,
+} from '../../agent/types'
 import type { Browser } from '../../browser/browser'
 import { getSessionsDir } from '../../lib/browseros-dir'
 import type { KlavisClient } from '../../lib/clients/klavis/klavis-client'
@@ -29,6 +32,35 @@ export interface ChatServiceDeps {
   aiSdkDevtoolsEnabled?: boolean
 }
 
+const NOVACLAW_DEFAULTS = {
+  brainBackend: 'nanoclaw',
+  safetyBackend: 'ironclaw',
+  swarmMaxAgents: 5,
+} as const
+
+function resolveNovaClawRuntimeConfig(
+  request: ChatRequest,
+): NovaClawRuntimeConfig {
+  const enabled = request.mode === 'lobster'
+  const explicitConfig = request.novaClaw
+
+  return {
+    enabled,
+    brainBackend:
+      explicitConfig?.brainBackend ??
+      request.brainBackend ??
+      (enabled ? NOVACLAW_DEFAULTS.brainBackend : 'native'),
+    safetyBackend:
+      explicitConfig?.safetyBackend ??
+      request.safetyBackend ??
+      (enabled ? NOVACLAW_DEFAULTS.safetyBackend : 'native'),
+    swarmMaxAgents:
+      explicitConfig?.swarmMaxAgents ??
+      request.swarmMaxAgents ??
+      (enabled ? NOVACLAW_DEFAULTS.swarmMaxAgents : 1),
+  }
+}
+
 export class ChatService {
   constructor(private deps: ChatServiceDeps) {}
 
@@ -41,7 +73,7 @@ export class ChatService {
     const llmConfig = await resolveLLMConfig(request, this.deps.browserosId)
 
     const workingDir = await this.resolveSessionDir(request)
-    const isLobsterMode = request.mode === 'lobster'
+    const novaClawConfig = resolveNovaClawRuntimeConfig(request)
 
     const agentConfig: ResolvedAgentConfig = {
       conversationId: request.conversationId,
@@ -63,12 +95,10 @@ export class ChatService {
       workingDir,
       supportsImages: request.supportsImages,
       chatMode: request.mode === 'chat',
-      lobsterMode: isLobsterMode,
-      brainBackend:
-        request.brainBackend ?? (isLobsterMode ? 'nanoclaw' : 'native'),
-      safetyBackend:
-        request.safetyBackend ?? (isLobsterMode ? 'ironclaw' : 'native'),
-      swarmMaxAgents: request.swarmMaxAgents ?? (isLobsterMode ? 5 : 1),
+      lobsterMode: novaClawConfig.enabled,
+      brainBackend: novaClawConfig.brainBackend,
+      safetyBackend: novaClawConfig.safetyBackend,
+      swarmMaxAgents: novaClawConfig.swarmMaxAgents,
       isScheduledTask: request.isScheduledTask,
       declinedApps: request.declinedApps,
     }

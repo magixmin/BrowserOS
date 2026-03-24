@@ -134,8 +134,8 @@ export const SettingsSidebar: FC = () => {
           icon: Server,
         },
         {
-          name: 'NanoClaw',
-          to: '/settings/nanoclaw',
+          name: t('settings.nav.novaclaw'),
+          to: '/settings/novaclaw',
           icon: Settings2,
         },
         {

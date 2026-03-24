@@ -28,7 +28,7 @@ import { useLlmProviders } from '@/lib/llm-providers/useLlmProviders'
 import { track } from '@/lib/metrics/track'
 import { searchActionsStorage } from '@/lib/search-actions/searchActionsStorage'
 import { selectedTextStorage } from '@/lib/selected-text/selectedTextStorage'
-import { nanoclawConfigStorage } from '@/lib/nanoclaw/storage'
+import { novaClawConfigStorage } from '@/lib/nanoclaw/storage'
 import { stopAgentStorage } from '@/lib/stop-agent/stop-agent-storage'
 import { selectedWorkspaceStorage } from '@/lib/workspace/workspace-storage'
 import type { ChatMode } from './chatTypes'
@@ -213,10 +213,10 @@ export const useChatSession = (options?: ChatSessionOptions) => {
   }, [])
 
   useEffect(() => {
-    nanoclawConfigStorage.getValue().then((value) => {
+    novaClawConfigStorage.getValue().then((value) => {
       nanoClawConfigRef.current = value
     })
-    const unwatch = nanoclawConfigStorage.watch((value) => {
+    const unwatch = novaClawConfigStorage.watch((value) => {
       nanoClawConfigRef.current = value
     })
     return () => unwatch()
@@ -349,6 +349,15 @@ export const useChatSession = (options?: ChatSessionOptions) => {
             mode: currentMode,
             ...(currentMode === 'lobster' &&
               nanoClawConfig && {
+                novaClaw: {
+                  brainBackend: nanoClawConfig.brainBackend,
+                  safetyBackend: nanoClawConfig.safetyBackend,
+                  swarmMaxAgents: nanoClawConfig.swarmMaxAgents,
+                },
+              }),
+            ...(currentMode === 'lobster' &&
+              nanoClawConfig && {
+                // Legacy flat fields kept for older servers.
                 brainBackend: nanoClawConfig.brainBackend,
                 safetyBackend: nanoClawConfig.safetyBackend,
                 swarmMaxAgents: nanoClawConfig.swarmMaxAgents,

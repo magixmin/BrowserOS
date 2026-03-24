@@ -36,6 +36,14 @@ export const AgentLLMConfigSchema = LLMConfigSchema.extend({
 
 export type AgentLLMConfig = z.infer<typeof AgentLLMConfigSchema>
 
+export const NovaClawConfigSchema = z.object({
+  brainBackend: z.enum(['native', 'nanoclaw']).optional(),
+  safetyBackend: z.enum(['native', 'ironclaw']).optional(),
+  swarmMaxAgents: z.number().int().min(1).max(8).optional(),
+})
+
+export type NovaClawConfigInput = z.infer<typeof NovaClawConfigSchema>
+
 export const ChatRequestSchema = AgentLLMConfigSchema.extend({
   conversationId: z.string().uuid(),
   message: z.string().min(1, 'Message cannot be empty'),
@@ -45,7 +53,9 @@ export const ChatRequestSchema = AgentLLMConfigSchema.extend({
   isScheduledTask: z.boolean().optional().default(false),
   userWorkingDir: z.string().min(1).optional(),
   supportsImages: z.boolean().optional().default(true),
+  // `lobster` is the legacy wire value kept for NovaClaw compatibility.
   mode: z.enum(['chat', 'agent', 'lobster']).optional().default('agent'),
+  novaClaw: NovaClawConfigSchema.optional(),
   brainBackend: z.enum(['native', 'nanoclaw']).optional(),
   safetyBackend: z.enum(['native', 'ironclaw']).optional(),
   swarmMaxAgents: z.number().int().min(1).max(8).optional(),
