@@ -23,6 +23,7 @@ export const App: FC = () => {
           }
         >
           <Route path="lobster" element={<Chat />} />
+          <Route path="novaclaw" element={<Chat />} />
         </Route>
       </Routes>
     </HashRouter>
