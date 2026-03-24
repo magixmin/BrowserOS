@@ -28,7 +28,7 @@ export const ProviderTemplateCard: FC<ProviderTemplateCardProps> = ({
     >
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <ProviderIcon
-          type={template.id}
+          type={template.iconType ?? template.type}
           size={28}
           className="shrink-0 text-accent-orange/70 transition-colors group-hover:text-accent-orange"
         />
@@ -41,6 +41,11 @@ export const ProviderTemplateCard: FC<ProviderTemplateCardProps> = ({
               </span>
             )}
           </div>
+          {template.description && (
+            <p className="mt-1 line-clamp-2 text-muted-foreground text-sm">
+              {template.description}
+            </p>
+          )}
         </div>
       </div>
       <Badge

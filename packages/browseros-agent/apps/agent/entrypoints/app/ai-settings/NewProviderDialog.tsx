@@ -38,10 +38,10 @@ import {
   KIMI_API_KEY_CONFIGURED_EVENT,
   KIMI_API_KEY_GUIDE_CLICKED_EVENT,
 } from '@/lib/constants/analyticsEvents'
-import { useKimiLaunch } from '@/lib/feature-flags/useKimiLaunch'
 import {
   getDefaultBaseUrlForProviders,
   getProviderTemplate,
+  providerTemplates,
   providerTypeOptions,
 } from '@/lib/llm-providers/providerTemplates'
 import { type TestResult, testProvider } from '@/lib/llm-providers/testProvider'
@@ -188,15 +188,12 @@ export const NewProviderDialog: FC<NewProviderDialogProps> = ({
   const [testResult, setTestResult] = useState<TestResult | null>(null)
   const { supports } = useCapabilities()
   const { baseUrl: agentServerUrl } = useAgentServerUrl()
-  const kimiLaunch = useKimiLaunch()
 
   const filteredProviderTypeOptions = providerTypeOptions.filter((opt) => {
     if (opt.value === 'chatgpt-pro')
       return supports(Feature.CHATGPT_PRO_SUPPORT)
     if (opt.value === 'github-copilot')
       return supports(Feature.GITHUB_COPILOT_SUPPORT)
-    if (opt.value === 'moonshot')
-      return kimiLaunch || initialValues?.type === 'moonshot'
     if (opt.value === 'openai-compatible') {
       return supports(Feature.OPENAI_COMPATIBLE_SUPPORT)
     }
@@ -228,6 +225,7 @@ export const NewProviderDialog: FC<NewProviderDialogProps> = ({
   })
 
   const watchedType = form.watch('type')
+  const watchedName = form.watch('name')
   const watchedModelId = form.watch('modelId')
 
   // Watch credential fields to clear test result when they change
@@ -448,7 +446,11 @@ export const NewProviderDialog: FC<NewProviderDialogProps> = ({
     }
   }
 
-  const providerTemplate = getProviderTemplate(watchedType as ProviderType)
+  const providerTemplate =
+    providerTemplates.find(
+      (template) =>
+        template.type === watchedType && template.name === watchedName,
+    ) ?? getProviderTemplate(watchedType as ProviderType)
   const setupGuideUrl = providerTemplate?.setupGuideUrl
   const providerName = providerTemplate?.name
   const setupGuideText =
@@ -687,6 +689,12 @@ export const NewProviderDialog: FC<NewProviderDialogProps> = ({
               <FormControl>
                 <Input placeholder="https://api.openai.com/v1" {...field} />
               </FormControl>
+              {watchedType === 'openai-compatible' && (
+                <FormDescription>
+                  Use this for DeepSeek, MiniMax, or any OpenAI-compatible
+                  third-party API.
+                </FormDescription>
+              )}
               <FormMessage />
             </FormItem>
           )}
@@ -846,6 +854,12 @@ export const NewProviderDialog: FC<NewProviderDialogProps> = ({
                         ))}
                       </SelectContent>
                     </Select>
+                  )}
+                  {watchedType === 'openai-compatible' && (
+                    <FormDescription>
+                      Examples: `deepseek-chat`, `deepseek-reasoner`,
+                      `MiniMax-M2.5`
+                    </FormDescription>
                   )}
                   <FormMessage />
                 </FormItem>

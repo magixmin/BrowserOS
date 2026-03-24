@@ -2,9 +2,11 @@ import {
   Anthropic,
   Azure,
   Bedrock,
+  DeepSeek,
   Gemini,
   Kimi,
   LmStudio,
+  Minimax,
   Ollama,
   OpenAI,
   OpenRouter,
@@ -21,7 +23,13 @@ interface IconProps extends SVGProps<SVGSVGElement> {
 
 type IconComponent = FC<IconProps>
 
-const providerIconMap: Record<ProviderType, IconComponent | null> = {
+export type ProviderIconType =
+  | ProviderType
+  | 'deepseek'
+  | 'minimax'
+  | 'custom-api'
+
+const providerIconMap: Record<ProviderIconType, IconComponent | null> = {
   anthropic: Anthropic,
   openai: OpenAI,
   'openai-compatible': OpenAI,
@@ -35,10 +43,26 @@ const providerIconMap: Record<ProviderType, IconComponent | null> = {
   moonshot: Kimi,
   'chatgpt-pro': OpenAI,
   'github-copilot': Github,
+  deepseek: DeepSeek,
+  minimax: Minimax,
+  'custom-api': OpenAI,
+}
+
+export function getProviderIconType(provider: {
+  type: ProviderType
+  name?: string | null
+}): ProviderIconType {
+  if (provider.type !== 'openai-compatible') return provider.type
+
+  const normalizedName = provider.name?.trim().toLowerCase() ?? ''
+  if (normalizedName.includes('deepseek')) return 'deepseek'
+  if (normalizedName.includes('minimax')) return 'minimax'
+
+  return 'openai-compatible'
 }
 
 interface ProviderIconProps {
-  type: ProviderType
+  type: ProviderIconType
   size?: number
   className?: string
 }

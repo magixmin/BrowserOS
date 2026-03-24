@@ -4,7 +4,11 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { PRODUCT_NAME } from '@/lib/constants/product'
 import { useKimiLaunch } from '@/lib/feature-flags/useKimiLaunch'
-import { BrowserOSIcon, ProviderIcon } from '@/lib/llm-providers/providerIcons'
+import {
+  BrowserOSIcon,
+  getProviderIconType,
+  ProviderIcon,
+} from '@/lib/llm-providers/providerIcons'
 import type { LlmProviderConfig } from '@/lib/llm-providers/types'
 import { cn } from '@/lib/utils'
 
@@ -65,7 +69,7 @@ export const ProviderCard: FC<ProviderCardProps> = ({
         {isBuiltIn ? (
           <BrowserOSIcon size={24} />
         ) : (
-          <ProviderIcon type={provider.type} size={24} />
+          <ProviderIcon type={getProviderIconType(provider)} size={24} />
         )}
       </div>
       <div className="min-w-0 flex-1">

@@ -46,8 +46,11 @@ import {
   NEWTAB_TABS_OPENED_EVENT,
   NEWTAB_WORKSPACE_OPENED_EVENT,
 } from '@/lib/constants/analyticsEvents'
-import { BrowserOSIcon, ProviderIcon } from '@/lib/llm-providers/providerIcons'
-import type { ProviderType } from '@/lib/llm-providers/types'
+import {
+  BrowserOSIcon,
+  getProviderIconType,
+  ProviderIcon,
+} from '@/lib/llm-providers/providerIcons'
 import { useMcpServers } from '@/lib/mcp/mcpServerStorage'
 import { useSyncRemoteIntegrations } from '@/lib/mcp/useSyncRemoteIntegrations'
 import { openSidePanelWithSearch } from '@/lib/messaging/sidepanel/openSidepanelWithSearch'
@@ -555,7 +558,7 @@ export const NewTab = () => {
                           <BrowserOSIcon size={16} />
                         ) : (
                           <ProviderIcon
-                            type={selectedProvider.type as ProviderType}
+                            type={getProviderIconType(selectedProvider)}
                             size={16}
                           />
                         )}

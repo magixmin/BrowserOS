@@ -5,8 +5,11 @@ import { ChatProviderSelector } from '@/components/chat/ChatProviderSelector'
 import type { Provider } from '@/components/chat/chatComponentTypes'
 import { ThemeToggle } from '@/components/elements/theme-toggle'
 import { productRepositoryUrl } from '@/lib/constants/productUrls'
-import { BrowserOSIcon, ProviderIcon } from '@/lib/llm-providers/providerIcons'
-import type { ProviderType } from '@/lib/llm-providers/types'
+import {
+  BrowserOSIcon,
+  getProviderIconType,
+  ProviderIcon,
+} from '@/lib/llm-providers/providerIcons'
 
 interface ChatHeaderProps {
   selectedProvider: Provider
@@ -58,10 +61,7 @@ export const ChatHeader: FC<ChatHeaderProps> = ({
             {selectedProvider.type === 'browseros' ? (
               <BrowserOSIcon size={18} />
             ) : (
-              <ProviderIcon
-                type={selectedProvider.type as ProviderType}
-                size={18}
-              />
+              <ProviderIcon type={getProviderIconType(selectedProvider)} size={18} />
             )}
             <span className="font-semibold text-base">
               {selectedProvider.name}

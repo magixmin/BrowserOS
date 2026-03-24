@@ -14,8 +14,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { BrowserOSIcon, ProviderIcon } from '@/lib/llm-providers/providerIcons'
-import type { ProviderType } from '@/lib/llm-providers/types'
+import {
+  BrowserOSIcon,
+  getProviderIconType,
+  ProviderIcon,
+} from '@/lib/llm-providers/providerIcons'
 import { cn } from '@/lib/utils'
 import type { Provider } from './chatComponentTypes'
 
@@ -62,7 +65,7 @@ export const ChatProviderSelector: FC<
                         <BrowserOSIcon size={18} />
                       ) : (
                         <ProviderIcon
-                          type={provider.type as ProviderType}
+                          type={getProviderIconType(provider)}
                           size={18}
                         />
                       )}

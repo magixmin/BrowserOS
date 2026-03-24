@@ -6,12 +6,15 @@ import type { ProviderType } from './types'
  * @public
  */
 export interface ProviderTemplate {
-  id: ProviderType
+  id: string
+  type: ProviderType
   name: string
   defaultBaseUrl: string
   defaultModelId: string
   supportsImages: boolean
   contextWindow: number
+  description?: string
+  iconType?: ProviderType | 'deepseek' | 'minimax' | 'custom-api'
   setupGuideUrl?: string
   apiKeyUrl?: string
 }
@@ -23,6 +26,7 @@ export interface ProviderTemplate {
 export const providerTemplates: ProviderTemplate[] = [
   {
     id: 'chatgpt-pro',
+    type: 'chatgpt-pro',
     name: 'ChatGPT Plus/Pro',
     defaultBaseUrl: 'https://chatgpt.com/backend-api',
     defaultModelId: 'gpt-5.3-codex',
@@ -32,6 +36,7 @@ export const providerTemplates: ProviderTemplate[] = [
   },
   {
     id: 'github-copilot',
+    type: 'github-copilot',
     name: 'GitHub Copilot',
     defaultBaseUrl: 'https://api.githubcopilot.com',
     defaultModelId: 'gpt-5-mini',
@@ -41,16 +46,19 @@ export const providerTemplates: ProviderTemplate[] = [
   },
   {
     id: 'moonshot',
-    name: 'Moonshot AI',
+    type: 'moonshot',
+    name: 'Kimi (Moonshot AI)',
     defaultBaseUrl: 'https://api.moonshot.ai/v1',
     defaultModelId: 'kimi-k2.5',
     supportsImages: true,
     contextWindow: 200000,
+    description: 'Connect your own Kimi API key for chat and agent tasks.',
     apiKeyUrl: 'https://platform.moonshot.ai/console/api-keys',
     setupGuideUrl: 'https://platform.moonshot.ai/console/api-keys',
   },
   {
     id: 'openai',
+    type: 'openai',
     name: 'OpenAI',
     defaultBaseUrl: 'https://api.openai.com/v1',
     defaultModelId: 'gpt-4',
@@ -62,14 +70,43 @@ export const providerTemplates: ProviderTemplate[] = [
   },
   {
     id: 'openai-compatible',
-    name: 'OpenAI Compatible',
+    type: 'openai-compatible',
+    name: 'Third-Party Compatible API',
     defaultBaseUrl: '',
     defaultModelId: '',
     supportsImages: true,
     contextWindow: 128000,
+    description: 'Bring any OpenAI-compatible endpoint with a custom base URL.',
+    iconType: 'custom-api',
+  },
+  {
+    id: 'deepseek',
+    type: 'openai-compatible',
+    name: 'DeepSeek',
+    defaultBaseUrl: 'https://api.deepseek.com',
+    defaultModelId: 'deepseek-chat',
+    supportsImages: true,
+    contextWindow: 128000,
+    description:
+      'OpenAI-compatible preset for DeepSeek Chat and DeepSeek Reasoner.',
+    iconType: 'deepseek',
+    setupGuideUrl: 'https://api-docs.deepseek.com/',
+  },
+  {
+    id: 'minimax',
+    type: 'openai-compatible',
+    name: 'MiniMax',
+    defaultBaseUrl: 'https://api.minimax.io/v1',
+    defaultModelId: 'MiniMax-M2.5',
+    supportsImages: true,
+    contextWindow: 1000000,
+    description: 'OpenAI-compatible preset for MiniMax text generation APIs.',
+    iconType: 'minimax',
+    setupGuideUrl: 'https://platform.minimax.io/docs/api-reference/text-openai-api',
   },
   {
     id: 'anthropic',
+    type: 'anthropic',
     name: 'Anthropic',
     defaultBaseUrl: 'https://api.anthropic.com/v1',
     defaultModelId: 'claude-3-5-sonnet-20241022',
@@ -81,6 +118,7 @@ export const providerTemplates: ProviderTemplate[] = [
   },
   {
     id: 'google',
+    type: 'google',
     name: 'Gemini',
     defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta',
     defaultModelId: 'gemini-1.5-pro',
@@ -92,6 +130,7 @@ export const providerTemplates: ProviderTemplate[] = [
   },
   {
     id: 'ollama',
+    type: 'ollama',
     name: 'Ollama',
     defaultBaseUrl: 'http://localhost:11434/v1',
     defaultModelId: 'llama3.2',
@@ -102,6 +141,7 @@ export const providerTemplates: ProviderTemplate[] = [
   },
   {
     id: 'openrouter',
+    type: 'openrouter',
     name: 'OpenRouter',
     defaultBaseUrl: 'https://openrouter.ai/api/v1',
     defaultModelId: 'openai/gpt-4-turbo',
@@ -113,6 +153,7 @@ export const providerTemplates: ProviderTemplate[] = [
   },
   {
     id: 'lmstudio',
+    type: 'lmstudio',
     name: 'LM Studio',
     defaultBaseUrl: 'http://localhost:1234/v1',
     defaultModelId: 'local-model',
@@ -123,6 +164,7 @@ export const providerTemplates: ProviderTemplate[] = [
   },
   {
     id: 'azure',
+    type: 'azure',
     name: 'Azure',
     defaultBaseUrl: '',
     defaultModelId: '',
@@ -133,6 +175,7 @@ export const providerTemplates: ProviderTemplate[] = [
   },
   {
     id: 'bedrock',
+    type: 'bedrock',
     name: 'AWS Bedrock',
     defaultBaseUrl: '',
     defaultModelId: '',
@@ -150,7 +193,7 @@ export const providerTemplates: ProviderTemplate[] = [
 export const providerTypeOptions: { value: ProviderType; label: string }[] = [
   { value: 'chatgpt-pro', label: 'ChatGPT Plus/Pro' },
   { value: 'github-copilot', label: 'GitHub Copilot' },
-  { value: 'moonshot', label: 'Moonshot AI' },
+  { value: 'moonshot', label: 'Kimi / Moonshot AI' },
   { value: 'anthropic', label: 'Anthropic' },
   { value: 'openai', label: 'OpenAI' },
   { value: 'openai-compatible', label: 'OpenAI Compatible' },
@@ -170,7 +213,7 @@ export const providerTypeOptions: { value: ProviderType; label: string }[] = [
 export const getProviderTemplate = (
   type: ProviderType,
 ): ProviderTemplate | undefined => {
-  return providerTemplates.find((t) => t.id === type)
+  return providerTemplates.find((t) => t.type === type)
 }
 
 /**

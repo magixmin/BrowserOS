@@ -7,7 +7,6 @@ import {
 } from '@/components/ui/collapsible'
 import { Feature } from '@/lib/browseros/capabilities'
 import { useCapabilities } from '@/lib/browseros/useCapabilities'
-import { useKimiLaunch } from '@/lib/feature-flags/useKimiLaunch'
 import {
   type ProviderTemplate,
   providerTemplates,
@@ -23,15 +22,13 @@ export const ProviderTemplatesSection: FC<ProviderTemplatesSectionProps> = ({
   onUseTemplate,
 }) => {
   const { supports } = useCapabilities()
-  const kimiLaunch = useKimiLaunch()
 
   const filteredTemplates = providerTemplates.filter((template) => {
-    if (template.id === 'chatgpt-pro')
+    if (template.type === 'chatgpt-pro')
       return supports(Feature.CHATGPT_PRO_SUPPORT)
-    if (template.id === 'github-copilot')
+    if (template.type === 'github-copilot')
       return supports(Feature.GITHUB_COPILOT_SUPPORT)
-    if (template.id === 'moonshot') return kimiLaunch
-    if (template.id === 'openai-compatible') {
+    if (template.type === 'openai-compatible') {
       return supports(Feature.OPENAI_COMPATIBLE_SUPPORT)
     }
     return true
@@ -61,7 +58,9 @@ export const ProviderTemplatesSection: FC<ProviderTemplatesSectionProps> = ({
               <ProviderTemplateCard
                 key={template.id}
                 template={template}
-                highlighted={template.id === 'moonshot'}
+                highlighted={['moonshot', 'deepseek', 'minimax'].includes(
+                  template.id,
+                )}
                 onUseTemplate={onUseTemplate}
               />
             ))}

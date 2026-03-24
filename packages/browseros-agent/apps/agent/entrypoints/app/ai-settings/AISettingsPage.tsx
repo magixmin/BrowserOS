@@ -216,17 +216,17 @@ export const AISettingsPage: FC = () => {
 
   const handleUseTemplate = (template: ProviderTemplate) => {
     // OAuth providers: trigger OAuth flow instead of opening form dialog
-    if (template.id === 'chatgpt-pro') {
+    if (template.type === 'chatgpt-pro') {
       handleStartChatGPTProOAuth()
       return
     }
-    if (template.id === 'github-copilot') {
+    if (template.type === 'github-copilot') {
       handleStartGitHubCopilotOAuth()
       return
     }
 
     setTemplateValues({
-      type: template.id,
+      type: template.type,
       name: template.name,
       baseUrl: template.defaultBaseUrl,
       modelId: template.defaultModelId,

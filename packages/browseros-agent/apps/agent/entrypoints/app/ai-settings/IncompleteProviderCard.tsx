@@ -1,7 +1,10 @@
 import { KeyRound, Trash2 } from 'lucide-react'
 import type { FC } from 'react'
 import { Button } from '@/components/ui/button'
-import { ProviderIcon } from '@/lib/llm-providers/providerIcons'
+import {
+  getProviderIconType,
+  ProviderIcon,
+} from '@/lib/llm-providers/providerIcons'
 import type { ProviderType } from '@/lib/llm-providers/types'
 
 export interface IncompleteProvider {
@@ -31,7 +34,13 @@ export const IncompleteProviderCard: FC<IncompleteProviderCardProps> = ({
   return (
     <div className="flex w-full items-center gap-4 rounded-xl border border-amber-500/50 border-dashed bg-amber-500/5 p-4">
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
-        <ProviderIcon type={provider.type as ProviderType} size={24} />
+        <ProviderIcon
+          type={getProviderIconType({
+            type: provider.type as ProviderType,
+            name: provider.name,
+          })}
+          size={24}
+        />
       </div>
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-center gap-2">
