@@ -5,6 +5,7 @@ import { ChatProviderSelector } from '@/components/chat/ChatProviderSelector'
 import type { Provider } from '@/components/chat/chatComponentTypes'
 import { ThemeToggle } from '@/components/elements/theme-toggle'
 import { productRepositoryUrl } from '@/lib/constants/productUrls'
+import { useI18n } from '@/lib/i18n/useI18n'
 import {
   BrowserOSIcon,
   getProviderIconType,
@@ -19,6 +20,10 @@ interface ChatHeaderProps {
   hasMessages: boolean
   hideHistory?: boolean
   title?: string
+  novaClawMeta?: {
+    executionModelLabel: string
+    enabledPluginCount: number
+  } | null
 }
 
 export const ChatHeader: FC<ChatHeaderProps> = ({
@@ -29,7 +34,9 @@ export const ChatHeader: FC<ChatHeaderProps> = ({
   hasMessages,
   hideHistory,
   title,
+  novaClawMeta,
 }) => {
+  const { t } = useI18n()
   const location = useLocation()
   const navigate = useNavigate()
   const isHistoryPage = location.pathname === '/history'
@@ -45,6 +52,16 @@ export const ChatHeader: FC<ChatHeaderProps> = ({
         {title ? (
           <div className="rounded-lg bg-[var(--accent-orange)]/10 px-2.5 py-1 font-semibold text-[var(--accent-orange)] text-xs">
             {title}
+          </div>
+        ) : null}
+        {novaClawMeta ? (
+          <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-2.5 py-1 text-[11px]">
+            <span className="font-medium text-foreground">
+              {t('novaclaw.header.exec')}: {novaClawMeta.executionModelLabel}
+            </span>
+            <span className="text-muted-foreground">
+              {t('novaclaw.header.plugins')}: {novaClawMeta.enabledPluginCount}
+            </span>
           </div>
         ) : null}
         {/* Provider Selector */}

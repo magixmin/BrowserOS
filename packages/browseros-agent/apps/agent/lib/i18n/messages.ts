@@ -14,6 +14,9 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
     'mode.selector.title': 'Select mode',
     'mode.selector.description':
       'Switch between chat, agent, and NovaClaw based on the task',
+    'novaclaw.header.exec': 'Exec',
+    'novaclaw.header.plugins': 'Plugins',
+    'novaclaw.model.current': 'Current chat model',
     'chat.empty.chatTitle': 'Chat with this page',
     'chat.empty.chatSubtitle':
       'Ask questions about the current page or any topic',
@@ -326,6 +329,9 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
     'mode.lobster.title': '高自主浏览器执行模式',
     'mode.selector.title': '选择模式',
     'mode.selector.description': '根据任务类型切换聊天、代理或 NovaClaw 模式',
+    'novaclaw.header.exec': '执行模型',
+    'novaclaw.header.plugins': '插件',
+    'novaclaw.model.current': '当前聊天模型',
     'chat.empty.chatTitle': '和当前页面聊天',
     'chat.empty.chatSubtitle': '针对当前页面或任意主题直接提问',
     'chat.empty.agentTitle': '代理已就绪',

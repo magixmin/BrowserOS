@@ -1,5 +1,6 @@
 import type { FC } from 'react'
 import { Outlet } from 'react-router'
+import { useNovaClawSessionMeta } from '@/lib/nanoclaw/useNovaClawSessionMeta'
 import { ChatHeader } from '../index/ChatHeader'
 import {
   type ChatSessionOptions,
@@ -20,7 +21,9 @@ const ChatLayoutContent: FC<Pick<ChatLayoutProps, 'title'>> = ({ title }) => {
     resetConversation,
     messages,
     isLoading,
+    mode,
   } = useChatSessionContext()
+  const novaClawMeta = useNovaClawSessionMeta(selectedProvider?.id)
 
   if (isLoading || !selectedProvider) {
     return (
@@ -39,6 +42,7 @@ const ChatLayoutContent: FC<Pick<ChatLayoutProps, 'title'>> = ({ title }) => {
         onNewConversation={resetConversation}
         hasMessages={messages.length > 0}
         title={title}
+        novaClawMeta={mode === 'lobster' ? novaClawMeta : null}
       />
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <Outlet />

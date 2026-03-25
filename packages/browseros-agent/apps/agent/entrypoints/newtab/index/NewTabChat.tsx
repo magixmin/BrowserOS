@@ -25,6 +25,7 @@ import {
   NEWTAB_VOICE_TRANSCRIPTION_COMPLETED_EVENT,
 } from '@/lib/constants/analyticsEvents'
 import { track } from '@/lib/metrics/track'
+import { useNovaClawSessionMeta } from '@/lib/nanoclaw/useNovaClawSessionMeta'
 
 export const NewTabChat: FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -73,6 +74,7 @@ export const NewTabChat: FC = () => {
       voiceError: NEWTAB_VOICE_ERROR_EVENT,
     },
   })
+  const novaClawMeta = useNovaClawSessionMeta(selectedProvider?.id)
 
   // Send the initial message from URL query params (from /home search bar).
   // Guarded by ref to prevent double-fire in React Strict Mode.
@@ -144,6 +146,7 @@ export const NewTabChat: FC = () => {
           onNewConversation={handleNewConversation}
           hasMessages={messages.length > 0}
           hideHistory
+          novaClawMeta={mode === 'lobster' ? novaClawMeta : null}
         />
       </div>
 

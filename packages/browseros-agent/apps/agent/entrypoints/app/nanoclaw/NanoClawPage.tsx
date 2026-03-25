@@ -16,6 +16,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { PRODUCT_NAME } from '@/lib/constants/product'
 import { useGetUserMCPIntegrations } from '@/entrypoints/app/connect-mcp/useGetUserMCPIntegrations'
+import { useI18n } from '@/lib/i18n/useI18n'
 import { useLlmProviders } from '@/lib/llm-providers/useLlmProviders'
 import { useMcpServers } from '@/lib/mcp/mcpServerStorage'
 import {
@@ -60,6 +61,7 @@ const PRESETS = [
 ]
 
 export const NovaClawPage: FC = () => {
+  const { t } = useI18n()
   const { config, setConfig, updateConfig } = useNovaClawConfig()
   const { providers: llmProviders } = useLlmProviders()
   const { servers } = useMcpServers()
@@ -126,7 +128,7 @@ export const NovaClawPage: FC = () => {
               </span>
               . Execution model is
               <span className="mx-1 font-medium text-foreground">
-                {executionProvider?.name ?? 'current chat model'}
+                {executionProvider?.name ?? t('novaclaw.model.current')}
               </span>
               .
             </p>
