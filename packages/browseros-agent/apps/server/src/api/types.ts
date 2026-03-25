@@ -40,6 +40,10 @@ export const NovaClawConfigSchema = z.object({
   brainBackend: z.enum(['native', 'nanoclaw']).optional(),
   safetyBackend: z.enum(['native', 'ironclaw']).optional(),
   swarmMaxAgents: z.number().int().min(1).max(8).optional(),
+  browserUsePolicy: z.enum(['on-demand', 'prefer-browser']).optional(),
+  toolRouting: z.enum(['local-first', 'hybrid', 'mcp-first']).optional(),
+  allowManagedApps: z.boolean().optional(),
+  allowCustomMcp: z.boolean().optional(),
 })
 
 export type NovaClawConfigInput = z.infer<typeof NovaClawConfigSchema>

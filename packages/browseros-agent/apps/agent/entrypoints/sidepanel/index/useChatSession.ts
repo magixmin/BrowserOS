@@ -171,6 +171,13 @@ export const useChatSession = (options?: ChatSessionOptions) => {
     brainBackend: 'native' | 'nanoclaw'
     safetyBackend: 'native' | 'ironclaw'
     swarmMaxAgents: number
+    browserUsePolicy: 'on-demand' | 'prefer-browser'
+    toolRouting: 'local-first' | 'hybrid' | 'mcp-first'
+    allowManagedApps: boolean
+    allowCustomMcp: boolean
+    executionProviderId?: string
+    disabledManagedServerNames: string[]
+    disabledCustomServerNames: string[]
   } | null>(null)
   const workingDirRef = useRef<string | undefined>(undefined)
   const selectionMapRef = useRef<
@@ -258,10 +265,18 @@ export const useChatSession = (options?: ChatSessionOptions) => {
           ? (selectionMapRef.current[String(activeTab.id)] ?? null)
           : null
         const message = getLastMessageText(messages)
-        const provider =
-          selectedLlmProviderRef.current ?? createDefaultBrowserOSProvider()
         const currentMode = modeRef.current
         const nanoClawConfig = nanoClawConfigRef.current
+        const executionProvider =
+          currentMode === 'lobster' && nanoClawConfig?.executionProviderId
+            ? llmProviders.find(
+                (each) => each.id === nanoClawConfig.executionProviderId,
+              ) ?? null
+            : null
+        const provider =
+          executionProvider ??
+          selectedLlmProviderRef.current ??
+          createDefaultBrowserOSProvider()
         const enabledMcpServers = enabledMcpServersRef.current
         const customMcpServers = enabledCustomServersRef.current
 
@@ -307,12 +322,37 @@ export const useChatSession = (options?: ChatSessionOptions) => {
           }))
         }
 
-        if (enabledMcpServers.length) {
-          browserContext.enabledMcpServers = compact(enabledMcpServers)
+        const allowManagedApps =
+          currentMode !== 'lobster' || nanoClawConfig?.allowManagedApps !== false
+        const allowCustomMcp =
+          currentMode !== 'lobster' || nanoClawConfig?.allowCustomMcp !== false
+
+        const filteredManagedServers =
+          currentMode === 'lobster' && nanoClawConfig
+            ? enabledMcpServers.filter(
+                (serverName) =>
+                  !nanoClawConfig.disabledManagedServerNames.includes(
+                    serverName ?? '',
+                  ),
+              )
+            : enabledMcpServers
+
+        if (filteredManagedServers.length && allowManagedApps) {
+          browserContext.enabledMcpServers = compact(filteredManagedServers)
         }
 
-        if (customMcpServers.length) {
-          browserContext.customMcpServers = customMcpServers as {
+        const filteredCustomServers =
+          currentMode === 'lobster' && nanoClawConfig
+            ? customMcpServers.filter(
+                (server) =>
+                  !nanoClawConfig.disabledCustomServerNames.includes(
+                    server.name ?? '',
+                  ),
+              )
+            : customMcpServers
+
+        if (filteredCustomServers.length && allowCustomMcp) {
+          browserContext.customMcpServers = filteredCustomServers as {
             name: string
             url: string
           }[]
@@ -353,6 +393,15 @@ export const useChatSession = (options?: ChatSessionOptions) => {
                   brainBackend: nanoClawConfig.brainBackend,
                   safetyBackend: nanoClawConfig.safetyBackend,
                   swarmMaxAgents: nanoClawConfig.swarmMaxAgents,
+                  browserUsePolicy: nanoClawConfig.browserUsePolicy,
+                  toolRouting: nanoClawConfig.toolRouting,
+                  allowManagedApps: nanoClawConfig.allowManagedApps,
+                  allowCustomMcp: nanoClawConfig.allowCustomMcp,
+                  executionProviderId: nanoClawConfig.executionProviderId,
+                  disabledManagedServerNames:
+                    nanoClawConfig.disabledManagedServerNames,
+                  disabledCustomServerNames:
+                    nanoClawConfig.disabledCustomServerNames,
                 },
               }),
             ...(currentMode === 'lobster' &&

@@ -65,10 +65,29 @@ export class NanoClawExecutor {
       const skills = await loadSkills()
       const skillsCatalog =
         skills.length > 0 ? buildSkillsCatalog(skills) : ''
+      const browserPolicyNote =
+        this.configTemplate.browserUsePolicy === 'prefer-browser'
+          ? 'Prefer BrowserOS MCP when both browser and local execution could work.'
+          : 'Use BrowserOS MCP only when local tools are insufficient or browser/app state is required.'
+      const routingNote =
+        this.configTemplate.toolRouting === 'mcp-first'
+          ? 'Prefer MCP and connected app tools first, then fall back to local filesystem tools.'
+          : this.configTemplate.toolRouting === 'hybrid'
+            ? 'Balance local tools and MCP tools pragmatically based on the task.'
+            : 'Prefer local filesystem and local execution first, then use MCP only when needed.'
+      const appAccessNote =
+        this.configTemplate.allowManagedApps === false &&
+        this.configTemplate.allowCustomMcp === false
+          ? 'Do not use connected app tools or custom MCP servers in this session.'
+          : this.configTemplate.allowManagedApps === false
+            ? 'Do not use connected managed app tools in this session.'
+            : this.configTemplate.allowCustomMcp === false
+              ? 'Do not use custom MCP servers in this session.'
+              : 'Connected managed apps and custom MCP servers may be used when necessary.'
       const executorPrompt =
         this.configTemplate.safetyBackend === 'ironclaw'
-          ? `${EXECUTOR_SYSTEM_PROMPT}\n\n${IRONCLAW_EXECUTOR_PROMPT}`
-          : EXECUTOR_SYSTEM_PROMPT
+          ? `${EXECUTOR_SYSTEM_PROMPT}\n\n${browserPolicyNote}\n${routingNote}\n${appAccessNote}\n\n${IRONCLAW_EXECUTOR_PROMPT}`
+          : `${EXECUTOR_SYSTEM_PROMPT}\n\n${browserPolicyNote}\n${routingNote}\n${appAccessNote}`
 
       const model = createLanguageModel(this.configTemplate)
 

@@ -37,6 +37,10 @@ const NOVACLAW_DEFAULTS = {
   brainBackend: 'nanoclaw',
   safetyBackend: 'ironclaw',
   swarmMaxAgents: 5,
+  browserUsePolicy: 'on-demand',
+  toolRouting: 'local-first',
+  allowManagedApps: true,
+  allowCustomMcp: true,
 } as const
 
 function resolveNovaClawRuntimeConfig(
@@ -59,6 +63,16 @@ function resolveNovaClawRuntimeConfig(
       explicitConfig?.swarmMaxAgents ??
       request.swarmMaxAgents ??
       (enabled ? NOVACLAW_DEFAULTS.swarmMaxAgents : 1),
+    browserUsePolicy:
+      explicitConfig?.browserUsePolicy ??
+      (enabled ? NOVACLAW_DEFAULTS.browserUsePolicy : 'on-demand'),
+    toolRouting:
+      explicitConfig?.toolRouting ??
+      (enabled ? NOVACLAW_DEFAULTS.toolRouting : 'local-first'),
+    allowManagedApps:
+      explicitConfig?.allowManagedApps ?? NOVACLAW_DEFAULTS.allowManagedApps,
+    allowCustomMcp:
+      explicitConfig?.allowCustomMcp ?? NOVACLAW_DEFAULTS.allowCustomMcp,
   }
 }
 
@@ -100,6 +114,10 @@ export class ChatService {
       brainBackend: novaClawConfig.brainBackend,
       safetyBackend: novaClawConfig.safetyBackend,
       swarmMaxAgents: novaClawConfig.swarmMaxAgents,
+      browserUsePolicy: novaClawConfig.browserUsePolicy,
+      toolRouting: novaClawConfig.toolRouting,
+      allowManagedApps: novaClawConfig.allowManagedApps,
+      allowCustomMcp: novaClawConfig.allowCustomMcp,
       isScheduledTask: request.isScheduledTask,
       declinedApps: request.declinedApps,
     }

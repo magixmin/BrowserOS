@@ -23,6 +23,10 @@ export interface NovaClawRuntimeConfig {
   brainBackend: 'native' | 'nanoclaw'
   safetyBackend: 'native' | 'ironclaw'
   swarmMaxAgents: number
+  browserUsePolicy: 'on-demand' | 'prefer-browser'
+  toolRouting: 'local-first' | 'hybrid' | 'mcp-first'
+  allowManagedApps: boolean
+  allowCustomMcp: boolean
 }
 
 export interface ResolvedAgentConfig {
@@ -57,6 +61,14 @@ export interface ResolvedAgentConfig {
   safetyBackend?: 'native' | 'ironclaw'
   /** NovaClaw max worker slots for swarm-style delegation. */
   swarmMaxAgents?: number
+  /** NovaClaw browser usage policy. */
+  browserUsePolicy?: 'on-demand' | 'prefer-browser'
+  /** NovaClaw local/MCP routing preference. */
+  toolRouting?: 'local-first' | 'hybrid' | 'mcp-first'
+  /** Whether NovaClaw may use connected managed apps. */
+  allowManagedApps?: boolean
+  /** Whether NovaClaw may use custom MCP servers. */
+  allowCustomMcp?: boolean
   /** Scheduled task mode - disables tab grouping. Defaults to false. */
   isScheduledTask?: boolean
   /** Apps the user previously declined to connect via MCP (chose "do it manually"). */
