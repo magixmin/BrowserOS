@@ -4,6 +4,9 @@ import type { BrowserContext } from '@browseros/shared/schemas/browser-context'
 import { stepCountIs, ToolLoopAgent } from 'ai'
 import type { KlavisClient } from '../../lib/clients/klavis/klavis-client'
 import { logger } from '../../lib/logger'
+import { buildSkillsCatalog } from '../../skills/catalog'
+import { loadSkills } from '../../skills/loader'
+import { buildFilesystemToolSet } from '../../tools/filesystem/build-toolset'
 import { formatBrowserContext } from '../format-message'
 import { createLanguageModel } from '../provider-factory'
 import type { ResolvedAgentConfig } from '../types'
@@ -13,6 +16,8 @@ const EXECUTOR_SYSTEM_PROMPT = `You are a NanoClaw browser worker. You execute o
 
 Rules:
 - Use only MCP tools available in this session. Do not call any internal BrowserOS agent loop.
+- You also have local filesystem tools. Prefer them for code, file edits, text processing, and local execution.
+- Use BrowserOS MCP only when the task needs the web, browser state, or connected apps.
 - If the task can be completed without opening or creating a browser page, answer directly.
 - Open or create browser pages only when the task actually requires web interaction.
 - Complete only the delegated goal.
@@ -57,6 +62,9 @@ export class NanoClawExecutor {
 
     try {
       const toolContext = formatBrowserContext(this.deps.browserContext)
+      const skills = await loadSkills()
+      const skillsCatalog =
+        skills.length > 0 ? buildSkillsCatalog(skills) : ''
       const executorPrompt =
         this.configTemplate.safetyBackend === 'ironclaw'
           ? `${EXECUTOR_SYSTEM_PROMPT}\n\n${IRONCLAW_EXECUTOR_PROMPT}`
@@ -100,10 +108,17 @@ export class NanoClawExecutor {
         ),
       ])
 
+      const filesystemTools = buildFilesystemToolSet(
+        this.configTemplate.workingDir,
+      )
+
       const agent = new ToolLoopAgent({
         model,
-        instructions: executorPrompt,
-        tools: mcpTools as Record<string, unknown>,
+        instructions: [executorPrompt, skillsCatalog].filter(Boolean).join('\n\n'),
+        tools: {
+          ...filesystemTools,
+          ...(mcpTools as Record<string, unknown>),
+        },
         stopWhen: [stepCountIs(15)],
       })
 
