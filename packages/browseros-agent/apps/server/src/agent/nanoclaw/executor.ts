@@ -1,7 +1,7 @@
 import { createMCPClient } from '@ai-sdk/mcp'
 import { TIMEOUTS } from '@browseros/shared/constants/timeouts'
 import type { BrowserContext } from '@browseros/shared/schemas/browser-context'
-import { stepCountIs, ToolLoopAgent } from 'ai'
+import { stepCountIs, ToolLoopAgent, type ToolSet } from 'ai'
 import type { KlavisClient } from '../../lib/clients/klavis/klavis-client'
 import { logger } from '../../lib/logger'
 import { buildSkillsCatalog } from '../../skills/catalog'
@@ -136,8 +136,8 @@ export class NanoClawExecutor {
         instructions: [executorPrompt, skillsCatalog].filter(Boolean).join('\n\n'),
         tools: {
           ...filesystemTools,
-          ...(mcpTools as Record<string, unknown>),
-        },
+          ...(mcpTools as ToolSet),
+        } as ToolSet,
         stopWhen: [stepCountIs(15)],
       })
 

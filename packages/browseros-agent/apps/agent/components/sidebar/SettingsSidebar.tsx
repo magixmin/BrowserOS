@@ -59,45 +59,6 @@ const getSectionClassName = (index: number) =>
 const sectionLabelClassName =
   'mb-2 px-3 font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.18em]'
 
-const primarySettingsSections: NavSection[] = [
-  {
-    label: 'Provider Settings',
-    items: [
-      { name: `${PRODUCT_NAME} AI`, to: '/settings/ai', icon: Bot },
-      {
-        name: 'Chat & Council Provider',
-        to: '/settings/chat',
-        icon: MessageSquare,
-      },
-      { name: 'Search Provider', to: '/settings/search', icon: Search },
-    ],
-  },
-  {
-    label: 'Other',
-    items: [
-      {
-        name: `Customize ${PRODUCT_NAME}`,
-        to: '/settings/customization',
-        icon: Palette,
-        feature: Feature.CUSTOMIZATION_SUPPORT,
-      },
-      { name: `${PRODUCT_NAME} as MCP`, to: '/settings/mcp', icon: Server },
-      {
-        name: 'Workflows',
-        to: '/workflows',
-        icon: GitBranch,
-        feature: Feature.WORKFLOW_SUPPORT,
-      },
-    ],
-  },
-]
-
-const helpItems: NavItem[] = [
-  { name: 'Docs', href: 'https://docs.browseros.com/', icon: BookOpen },
-  { name: 'Features', to: '/onboarding/features', icon: Compass },
-  { name: 'Revisit Onboarding', to: '/onboarding', icon: RotateCcw },
-]
-
 export const SettingsSidebar: FC = () => {
   const { t } = useI18n()
   const { supports } = useCapabilities()
