@@ -4,11 +4,11 @@ import {
   Bot,
   Compass,
   GitBranch,
+  MessagesSquare,
   MessageSquare,
   Palette,
   RotateCcw,
   Search,
-  Server,
   Settings2,
 } from 'lucide-react'
 import type { FC } from 'react'
@@ -129,9 +129,9 @@ export const SettingsSidebar: FC = () => {
           feature: Feature.CUSTOMIZATION_SUPPORT,
         },
         {
-          name: t('settings.nav.mcp', { product: PRODUCT_NAME }),
-          to: '/settings/mcp',
-          icon: Server,
+          name: t('settings.nav.chatIntegrations'),
+          to: '/settings/chat-integrations',
+          icon: MessagesSquare,
         },
         {
           name: t('settings.nav.novaclaw'),

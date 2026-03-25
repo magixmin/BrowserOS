@@ -478,7 +478,7 @@ export const NovaClawPage: FC = () => {
                 <Link to="/connect-apps">Manage Connected Apps</Link>
               </Button>
               <Button asChild variant="outline" size="sm">
-                <Link to="/settings/mcp">Open MCP Settings</Link>
+                <Link to="/settings/chat-integrations">Open Chat Integrations</Link>
               </Button>
             </div>
           </div>

@@ -10,6 +10,7 @@ import { FeaturesPage } from '../onboarding/features/Features'
 import { Onboarding } from '../onboarding/index/Onboarding'
 import { StepsLayout } from '../onboarding/steps/StepsLayout'
 import { AISettingsPage } from './ai-settings/AISettingsPage'
+import { ChatIntegrationsPage } from './chat-integrations/ChatIntegrationsPage'
 import { ConnectMCP } from './connect-mcp/ConnectMCP'
 import { CreateGraphWrapper } from './create-graph/CreateGraphWrapper'
 import { CustomizationPage } from './customization/CustomizationPage'
@@ -49,6 +50,7 @@ const OptionsRedirect: FC = () => {
     chat: '/settings/chat',
     'connect-mcp': '/connect-apps',
     mcp: '/settings/mcp',
+    'chat-integrations': '/settings/chat-integrations',
     nanoclaw: '/settings/novaclaw',
     novaclaw: '/settings/novaclaw',
     customization: '/settings/customization',
@@ -109,6 +111,10 @@ export const App: FC = () => {
             <Route path="ai" element={<AISettingsPage key="ai" />} />
             <Route path="chat" element={<LlmHubPage />} />
             <Route path="mcp" element={<MCPSettingsPage />} />
+            <Route
+              path="chat-integrations"
+              element={<ChatIntegrationsPage />}
+            />
             <Route path="novaclaw" element={<NovaClawPage />} />
             <Route
               path="nanoclaw"

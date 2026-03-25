@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ChevronRight, Lightbulb } from 'lucide-react'
-import type { FC } from 'react'
+import { type FC, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod/v3'
 import { Button } from '@/components/ui/button'
@@ -40,6 +40,13 @@ type FormValues = z.infer<typeof formSchema>
 interface AddCustomMCPDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  initialValues?: {
+    name?: string
+    url?: string
+    description?: string
+  }
+  title?: string
+  description?: string
   onAddServer: (config: {
     name: string
     url: string
@@ -50,14 +57,17 @@ interface AddCustomMCPDialogProps {
 export const AddCustomMCPDialog: FC<AddCustomMCPDialogProps> = ({
   open,
   onOpenChange,
+  initialValues,
+  title = 'Add Custom App',
+  description = 'Configure your custom app connection',
   onAddServer,
 }) => {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: '',
-      url: '',
-      description: '',
+      name: initialValues?.name || '',
+      url: initialValues?.url || '',
+      description: initialValues?.description || '',
     },
   })
 
@@ -78,14 +88,23 @@ export const AddCustomMCPDialog: FC<AddCustomMCPDialogProps> = ({
     onOpenChange(false)
   }
 
+  // Keep the form aligned with the selected preset/template.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset intentionally when preset/open changes
+  useEffect(() => {
+    if (!open) return
+    form.reset({
+      name: initialValues?.name || '',
+      url: initialValues?.url || '',
+      description: initialValues?.description || '',
+    })
+  }, [open, initialValues?.name, initialValues?.url, initialValues?.description])
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Custom App</DialogTitle>
-          <DialogDescription>
-            Configure your custom app connection
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
