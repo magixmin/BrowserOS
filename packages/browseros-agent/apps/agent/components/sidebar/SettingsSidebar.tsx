@@ -4,6 +4,7 @@ import {
   Bot,
   Compass,
   GitBranch,
+  GlobeLock,
   MessagesSquare,
   MessageSquare,
   Palette,
@@ -93,6 +94,11 @@ export const SettingsSidebar: FC = () => {
           name: t('settings.nav.chatIntegrations'),
           to: '/settings/chat-integrations',
           icon: MessagesSquare,
+        },
+        {
+          name: t('settings.nav.browserOps'),
+          to: '/settings/browser-ops',
+          icon: GlobeLock,
         },
         {
           name: t('settings.nav.novaclaw'),

@@ -10,6 +10,7 @@ import { FeaturesPage } from '../onboarding/features/Features'
 import { Onboarding } from '../onboarding/index/Onboarding'
 import { StepsLayout } from '../onboarding/steps/StepsLayout'
 import { AISettingsPage } from './ai-settings/AISettingsPage'
+import { BrowserOpsPage } from './browser-ops/BrowserOpsPage'
 import { ChatIntegrationsPage } from './chat-integrations/ChatIntegrationsPage'
 import { ConnectMCP } from './connect-mcp/ConnectMCP'
 import { CreateGraphWrapper } from './create-graph/CreateGraphWrapper'
@@ -55,6 +56,7 @@ const OptionsRedirect: FC = () => {
     novaclaw: '/settings/novaclaw',
     customization: '/settings/customization',
     search: '/settings/search',
+    'browser-ops': '/settings/browser-ops',
     soul: '/home/soul',
     skills: '/home/skills',
     'skills-marketplace': '/home/skills-marketplace',
@@ -122,6 +124,7 @@ export const App: FC = () => {
             />
             <Route path="customization" element={<CustomizationPage />} />
             <Route path="search" element={<SearchProviderPage />} />
+            <Route path="browser-ops" element={<BrowserOpsPage />} />
             <Route path="survey" element={<SurveyPage {...surveyParams} />} />
           </Route>
         </Route>
