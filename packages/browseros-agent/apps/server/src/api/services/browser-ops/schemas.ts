@@ -88,6 +88,14 @@ export const BrowserOpsPreviewRequestSchema = z.object({
   settings: BrowserOpsWorkspaceSettingsSchema,
 })
 
+export const BrowserOpsAutomationRunSchema = BrowserOpsPreviewRequestSchema.extend(
+  {
+    mode: z.enum(['agent', 'lobster']).optional().default('agent'),
+    forceManagedWindow: z.boolean().optional().default(true),
+    restoreCookieVault: z.boolean().optional().default(true),
+  },
+)
+
 export const BrowserOpsReleaseAllocationSchema = z.object({
   allocationId: z.string().uuid(),
 })

@@ -16,7 +16,7 @@ This file is the current task board for work that is not fully closed yet. Sourc
 
 - [ ] Skill execution and automation landing
   Source: `docs/project-plans/ai-browser-os-browser-ops.md`
-  Status: task templates now resolve `skillKey` against the real skills catalog and Browser Ops can build an automation brief with resolved skill, route context, readiness, and execution prompt, but task-triggered live execution flows are still not connected to those skills.
+  Status: task templates now resolve `skillKey` against the real skills catalog, Browser Ops can build an automation brief, and the page can prepare a managed-window automation run draft that opens the sidepanel with a bound browserContext override, but full server-side one-click execution and post-run orchestration are still not connected.
 
 ## Eval System
 

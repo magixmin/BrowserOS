@@ -260,10 +260,6 @@ export const useChatSession = (options?: ChatSessionOptions) => {
           active: true,
           currentWindow: true,
         })
-        const activeTab = activeTabsList?.[0] ?? undefined
-        const activeTabSelection = activeTab?.id
-          ? (selectionMapRef.current[String(activeTab.id)] ?? null)
-          : null
         const message = getLastMessageText(messages)
         const currentMode = modeRef.current
         const nanoClawConfig = nanoClawConfigRef.current
@@ -285,6 +281,13 @@ export const useChatSession = (options?: ChatSessionOptions) => {
         }
 
         const action = getActionForMessage(message)
+        const hasBrowserContextOverride =
+          action?.type === 'browseros' && !!action.browserContextOverride
+        const activeTab = activeTabsList?.[0] ?? undefined
+        const activeTabSelection =
+          hasBrowserContextOverride || !activeTab?.id
+            ? null
+            : (selectionMapRef.current[String(activeTab.id)] ?? null)
 
         const browserContext: {
           windowId?: number
@@ -305,7 +308,30 @@ export const useChatSession = (options?: ChatSessionOptions) => {
           }[]
         } = {}
 
-        if (activeTab) {
+        if (hasBrowserContextOverride) {
+          const override = action?.browserContextOverride
+          if (override?.windowId !== undefined) {
+            browserContext.windowId = override.windowId
+          }
+          if (override?.activeTab) {
+            browserContext.activeTab = {
+              id: override.activeTab.id,
+              url: override.activeTab.url,
+              title: override.activeTab.title,
+              ...(override.activeTab.pageId !== undefined
+                ? { pageId: override.activeTab.pageId }
+                : {}),
+            }
+          }
+          if (override?.selectedTabs) {
+            browserContext.selectedTabs = override.selectedTabs.map((tab) => ({
+              id: tab.id,
+              url: tab.url,
+              title: tab.title,
+              ...(tab.pageId !== undefined ? { pageId: tab.pageId } : {}),
+            }))
+          }
+        } else if (activeTab) {
           browserContext.windowId = activeTab.windowId
           browserContext.activeTab = {
             id: activeTab.id,
@@ -314,7 +340,7 @@ export const useChatSession = (options?: ChatSessionOptions) => {
           }
         }
 
-        if (action?.tabs?.length) {
+        if (!hasBrowserContextOverride && action?.tabs?.length) {
           browserContext.selectedTabs = action?.tabs?.map((tab) => ({
             id: tab.id,
             url: tab.url,

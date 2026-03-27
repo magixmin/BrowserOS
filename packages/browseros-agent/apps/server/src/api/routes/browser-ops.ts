@@ -2,6 +2,12 @@ import type {
   Cookie,
   CookieParam,
 } from '@browseros/cdp-protocol/domains/network'
+import type {
+  BrowserOpsAutomationChatDraft,
+  BrowserOpsLaunchBundle,
+  BrowserOpsRuntimeAssetManifest,
+  BrowserOpsRuntimeBinding,
+} from '@browseros/shared/browser-ops'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import type { ControllerBackend } from '../../browser/backends/types'
@@ -26,6 +32,7 @@ import {
   buildBrowserOpsAutomationBrief,
 } from '../services/browser-ops/automation'
 import {
+  BrowserOpsAutomationRunSchema,
   BrowserOpsBindAllocationSchema,
   BrowserOpsCleanupInstancesSchema,
   BrowserOpsCookieVaultBindingSchema,
@@ -130,6 +137,201 @@ export function createBrowserOpsRoutes(deps: BrowserOpsRouteDeps) {
           routePreview,
         )
         return c.json({ brief })
+      },
+    )
+    .post(
+      '/automation/run-draft',
+      zValidator('json', BrowserOpsAutomationRunSchema),
+      async (c) => {
+        const request = c.req.valid('json')
+        const routePreview = service.previewRoute(request)
+        const brief = await buildBrowserOpsAutomationBrief(request, routePreview)
+        const allocation = service.allocateRoute(request)
+
+        try {
+          let binding: BrowserOpsRuntimeBinding | null = null
+          let asset: BrowserOpsRuntimeAssetManifest | null = null
+          let bundle: BrowserOpsLaunchBundle | null = null
+          let restoredCookies = 0
+          let page:
+            | {
+                pageId: number
+                tabId: number
+                windowId?: number
+                url: string
+                title: string
+              }
+            | null = null
+
+          if (request.forceManagedWindow) {
+            const browserContextId = await browser.createBrowserContext()
+            const window = await browser.createWindow({
+              hidden: false,
+              browserContextId,
+            })
+            const pageId = await browser.newPage(brief.recommendedStartUrl, {
+              windowId: window.windowId,
+              browserContextId,
+            })
+            const pages = await browser.listPages()
+            const resolvedPage = pages.find(
+              (candidate) => candidate.pageId === pageId,
+            )
+
+            if (!resolvedPage) {
+              service.releaseAllocation(allocation.allocationId)
+              return c.json(
+                { error: 'Failed to locate automation page after launch' },
+                500,
+              )
+            }
+
+            const controllerClientId =
+              typeof resolvedPage.windowId === 'number'
+                ? controller.getWindowOwnerClientId(resolvedPage.windowId)
+                : null
+
+            binding = service.bindAllocationToPage({
+              allocationId: allocation.allocationId,
+              controllerClientId,
+              browserContextId,
+              page: {
+                pageId: resolvedPage.pageId,
+                tabId: resolvedPage.tabId,
+                windowId: resolvedPage.windowId,
+                url: resolvedPage.url,
+                title: resolvedPage.title,
+              },
+            })
+
+            if (!binding) {
+              service.releaseAllocation(allocation.allocationId)
+              return c.json({ error: 'Failed to bind automation window' }, 500)
+            }
+
+            const spec =
+              binding.runtimeSpecId !== null
+                ? service.getRuntimeSessionSpec(binding.runtimeSpecId)
+                : null
+            asset = spec
+              ? await runtimePersistence.materializeRuntimeSessionSpec(spec)
+              : null
+            bundle = spec
+              ? await runtimePersistence.materializeLaunchBundle(spec.specId)
+              : null
+
+            if (request.restoreCookieVault) {
+              const vault = await runtimePersistence.readCookieVault(
+                binding.bindingId,
+              )
+              if (vault) {
+                const cookies = vault.cookies as Cookie[]
+                if (cookies.length > 0) {
+                  await browser.setCookies(
+                    cookies.map(toCookieParam),
+                    browserContextId,
+                  )
+                  restoredCookies = cookies.length
+                }
+              }
+            }
+
+            await pushProxyAuthRule(binding.bindingId)
+            page = {
+              pageId: resolvedPage.pageId,
+              tabId: resolvedPage.tabId,
+              windowId: resolvedPage.windowId,
+              url: resolvedPage.url,
+              title: resolvedPage.title,
+            }
+          } else {
+            const activePage = await browser.getActivePage()
+            if (!activePage) {
+              service.releaseAllocation(allocation.allocationId)
+              return c.json({ error: 'No active page available to bind' }, 400)
+            }
+
+            const controllerClientId =
+              typeof activePage.windowId === 'number'
+                ? controller.getWindowOwnerClientId(activePage.windowId)
+                : null
+
+            binding = service.bindAllocationToPage({
+              allocationId: allocation.allocationId,
+              controllerClientId,
+              browserContextId: null,
+              page: {
+                pageId: activePage.pageId,
+                tabId: activePage.tabId,
+                windowId: activePage.windowId,
+                url: activePage.url,
+                title: activePage.title,
+              },
+            })
+
+            if (!binding) {
+              service.releaseAllocation(allocation.allocationId)
+              return c.json({ error: 'Failed to bind active window' }, 500)
+            }
+
+            const spec =
+              binding.runtimeSpecId !== null
+                ? service.getRuntimeSessionSpec(binding.runtimeSpecId)
+                : null
+            asset = spec
+              ? await runtimePersistence.materializeRuntimeSessionSpec(spec)
+              : null
+            bundle = spec
+              ? await runtimePersistence.materializeLaunchBundle(spec.specId)
+              : null
+
+            await pushProxyAuthRule(binding.bindingId)
+            page = {
+              pageId: activePage.pageId,
+              tabId: activePage.tabId,
+              windowId: activePage.windowId,
+              url: activePage.url,
+              title: activePage.title,
+            }
+          }
+
+          if (!binding || !page) {
+            service.releaseAllocation(allocation.allocationId)
+            return c.json({ error: 'Automation binding was not created' }, 500)
+          }
+
+          const chatDraft: BrowserOpsAutomationChatDraft = {
+            mode: request.mode,
+            query: brief.executionPrompt,
+            browserContext: {
+              ...(typeof page.windowId === 'number'
+                ? { windowId: page.windowId }
+                : {}),
+              activeTab: {
+                id: page.tabId,
+                pageId: page.pageId,
+                url: page.url,
+                title: page.title,
+              },
+            },
+          }
+
+          return c.json(
+            { brief, allocation, binding, asset, bundle, page, restoredCookies, chatDraft },
+            201,
+          )
+        } catch (error) {
+          service.releaseAllocation(allocation.allocationId)
+          return c.json(
+            {
+              error:
+                error instanceof Error
+                  ? error.message
+                  : 'Failed to prepare automation run',
+            },
+            500,
+          )
+        }
       },
     )
     .get('/allocations', async (c) => {

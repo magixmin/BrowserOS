@@ -832,6 +832,63 @@ describe('Browser Ops routes', () => {
     else process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD = originalPass
   })
 
+  it('prepares an automation run draft with managed window binding and chat draft', async () => {
+    const originalUser = process.env.BROWSER_OPS_BRIGHTDATA_USERNAME
+    const originalPass = process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD
+    process.env.BROWSER_OPS_BRIGHTDATA_USERNAME = 'brd-user'
+    process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD = 'brd-pass'
+
+    const app = createRouteApp()
+    const payload = createPreviewPayload()
+
+    const response = await app.request('/automation/run-draft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...payload,
+        mode: 'agent',
+        forceManagedWindow: true,
+        restoreCookieVault: true,
+      }),
+    })
+
+    assert.strictEqual(response.status, 201)
+    const json = (await response.json()) as {
+      allocation: { allocationId: string }
+      binding: { allocationId: string; tabId: number; pageId: number }
+      brief: { readiness: string }
+      chatDraft: {
+        mode: string
+        query: string
+        browserContext: {
+          windowId?: number
+          activeTab?: { id: number; pageId?: number }
+        }
+      }
+    }
+
+    assert.strictEqual(json.brief.readiness, 'ready')
+    assert.strictEqual(json.chatDraft.mode, 'agent')
+    assert.ok(json.chatDraft.query.includes('Browser Ops execution brief'))
+    assert.strictEqual(
+      json.binding.allocationId,
+      json.allocation.allocationId,
+    )
+    assert.strictEqual(
+      json.chatDraft.browserContext.activeTab?.id,
+      json.binding.tabId,
+    )
+    assert.strictEqual(
+      json.chatDraft.browserContext.activeTab?.pageId,
+      json.binding.pageId,
+    )
+
+    if (originalUser === undefined) delete process.env.BROWSER_OPS_BRIGHTDATA_USERNAME
+    else process.env.BROWSER_OPS_BRIGHTDATA_USERNAME = originalUser
+    if (originalPass === undefined) delete process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD
+    else process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD = originalPass
+  })
+
   it('previews and allocates a route', async () => {
     const app = createRouteApp()
     const payload = createPreviewPayload()

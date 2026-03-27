@@ -1,3 +1,5 @@
+import type { BrowserContext } from '@browseros/shared/schemas/browser-context'
+
 /**
  * Base interface for all chat actions
  * @public
@@ -27,6 +29,7 @@ export interface BrowserOSAction extends BaseChatAction {
   mode: 'chat' | 'agent' | 'lobster'
   message: string
   tabs?: chrome.tabs.Tab[]
+  browserContextOverride?: BrowserContext
 }
 
 /**
@@ -70,6 +73,7 @@ export const createBrowserOSAction = (params: {
   mode: 'chat' | 'agent' | 'lobster'
   message: string
   tabs?: chrome.tabs.Tab[]
+  browserContextOverride?: BrowserContext
 }): BrowserOSAction => ({
   id: crypto.randomUUID(),
   type: 'browseros',
@@ -77,4 +81,5 @@ export const createBrowserOSAction = (params: {
   mode: params.mode,
   message: params.message,
   tabs: params.tabs,
+  browserContextOverride: params.browserContextOverride,
 })

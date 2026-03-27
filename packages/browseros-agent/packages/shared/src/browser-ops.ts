@@ -201,6 +201,20 @@ export interface BrowserOpsAutomationBrief {
   executionPrompt: string
 }
 
+export interface BrowserOpsAutomationChatDraft {
+  mode: 'agent' | 'lobster'
+  query: string
+  browserContext: {
+    windowId?: number
+    activeTab?: {
+      id: number
+      url?: string
+      title?: string
+      pageId?: number
+    }
+  }
+}
+
 export interface BrowserOpsRouteAllocation {
   allocationId: string
   profileId: string

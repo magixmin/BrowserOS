@@ -32,8 +32,12 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { resolveBrowserOpsRouteDecision } from '@/lib/browser-ops/scheduler'
 import {
+  createBrowserOSAction,
+} from '@/lib/chat-actions/types'
+import {
   assessBrowserOpsProxyHealth,
   type BrowserOpsControllerWindowOwnership,
+  type BrowserOpsAutomationChatDraft,
   type BrowserOpsCookieVaultSummary,
   type BrowserOpsInstanceDiagnostics,
   type BrowserOpsInstanceEvent,
@@ -55,6 +59,7 @@ import {
   getProxySourceLabel,
   getTaskTypeLabel,
 } from '@/lib/browser-ops/types'
+import { openSidePanelWithSearch } from '@/lib/messaging/sidepanel/openSidepanelWithSearch'
 import {
   createProfileDraft,
   createProxyDraft,
@@ -174,6 +179,7 @@ export const BrowserOpsPage: FC = () => {
   const [allocationError, setAllocationError] = useState<string | null>(null)
   const [bindingPending, setBindingPending] = useState(false)
   const [bindingError, setBindingError] = useState<string | null>(null)
+  const [automationRunPending, setAutomationRunPending] = useState(false)
 
   useEffect(() => {
     if (!workspace.profiles.length) {
@@ -1159,6 +1165,97 @@ export const BrowserOpsPage: FC = () => {
       toast.error('Failed to restore cookie vault')
     } finally {
       setBindingPending(false)
+    }
+  }
+
+  const startAutomationRun = async () => {
+    if (!selectedProfile || !selectedTask || !automationBrief) {
+      toast.error('Select a profile and task first')
+      return
+    }
+
+    setAutomationRunPending(true)
+    try {
+      const response = await rpcClient['browser-ops'].automation['run-draft'].$post({
+        json: {
+          profile: selectedProfile,
+          task: selectedTask,
+          proxies: workspace.proxies,
+          settings: workspace.settings,
+          mode: 'agent',
+          forceManagedWindow: true,
+          restoreCookieVault: true,
+        },
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+      const result = (await response.json()) as {
+        brief: BrowserOpsAutomationBrief
+        allocation: BrowserOpsRouteAllocation
+        binding: BrowserOpsRuntimeBinding
+        chatDraft: BrowserOpsAutomationChatDraft
+      }
+
+      setAllocations((current) => {
+        const filtered = current.filter(
+          (allocation) =>
+            allocation.allocationId !== result.allocation.allocationId,
+        )
+        return [result.allocation, ...filtered]
+      })
+      setRuntimeBindings((current) => {
+        const filtered = current.filter(
+          (binding) =>
+            binding.bindingId !== result.binding.bindingId &&
+            binding.allocationId !== result.binding.allocationId,
+        )
+        return [result.binding, ...filtered]
+      })
+      setAutomationBrief(result.brief)
+
+      const activeTab = result.chatDraft.browserContext.activeTab
+      const action = createBrowserOSAction({
+        mode: result.chatDraft.mode,
+        message: result.chatDraft.query,
+        tabs: activeTab
+          ? [
+              {
+                id: activeTab.id,
+                url: activeTab.url,
+                title: activeTab.title,
+                windowId: result.chatDraft.browserContext.windowId,
+              } as chrome.tabs.Tab,
+            ]
+          : undefined,
+        browserContextOverride: result.chatDraft.browserContext,
+      })
+
+      openSidePanelWithSearch('open', {
+        query: result.chatDraft.query,
+        mode: result.chatDraft.mode,
+        action,
+      })
+
+      await refreshRuntimeSessionSpecs()
+      await refreshRuntimeAssets()
+      await refreshCookieVaults()
+      await refreshLaunchBundles()
+      await refreshLaunchExecutions()
+      await refreshLaunchDiagnostics()
+      await refreshManagedInstances()
+      await refreshInstanceDiagnostics()
+      await refreshWindowOwnership()
+      await refreshRuntimeDiagnostics()
+
+      toast.success('Automation run drafted in sidepanel')
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to start automation run',
+      )
+    } finally {
+      setAutomationRunPending(false)
     }
   }
 
@@ -2364,6 +2461,20 @@ export const BrowserOpsPage: FC = () => {
                     </div>
                   ) : automationBrief ? (
                     <div className="space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          disabled={
+                            automationRunPending ||
+                            automationBrief.readiness !== 'ready'
+                          }
+                          onClick={startAutomationRun}
+                        >
+                          {automationRunPending
+                            ? 'Preparing...'
+                            : 'Run In Sidepanel'}
+                        </Button>
+                      </div>
                       <div className="grid gap-3 md:grid-cols-2">
                         <MiniInfo
                           label="Readiness"

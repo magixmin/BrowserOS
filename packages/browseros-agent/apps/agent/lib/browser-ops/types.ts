@@ -38,6 +38,7 @@ export {
   type BrowserOpsTaskTemplate,
   type BrowserOpsTaskType,
   type BrowserOpsAutomationBrief,
+  type BrowserOpsAutomationChatDraft,
   type BrowserOpsWorkspaceSettings,
   COUNTRY_PRESETS,
   type CountryPreset,
