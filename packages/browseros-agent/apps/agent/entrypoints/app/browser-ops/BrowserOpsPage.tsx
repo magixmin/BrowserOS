@@ -35,8 +35,12 @@ import {
   assessBrowserOpsProxyHealth,
   type BrowserOpsControllerWindowOwnership,
   type BrowserOpsCookieVaultSummary,
+  type BrowserOpsInstanceDiagnostics,
+  type BrowserOpsInstanceEvent,
   type BrowserOpsLaunchBundle,
+  type BrowserOpsLaunchDiagnostics,
   type BrowserOpsLaunchExecution,
+  type BrowserOpsManagedInstance,
   type BrowserOpsPreviewResult,
   type BrowserOpsProviderCatalogEntry,
   type BrowserOpsRouteAllocation,
@@ -131,6 +135,16 @@ export const BrowserOpsPage: FC = () => {
   const [launchExecutions, setLaunchExecutions] = useState<
     BrowserOpsLaunchExecution[]
   >([])
+  const [launchDiagnostics, setLaunchDiagnostics] =
+    useState<BrowserOpsLaunchDiagnostics | null>(null)
+  const [managedInstances, setManagedInstances] = useState<
+    BrowserOpsManagedInstance[]
+  >([])
+  const [instanceDiagnostics, setInstanceDiagnostics] =
+    useState<BrowserOpsInstanceDiagnostics | null>(null)
+  const [instanceEvents, setInstanceEvents] = useState<BrowserOpsInstanceEvent[]>(
+    [],
+  )
   const [windowOwnership, setWindowOwnership] = useState<
     BrowserOpsControllerWindowOwnership[]
   >([])
@@ -264,6 +278,45 @@ export const BrowserOpsPage: FC = () => {
     setLaunchExecutions(result.executions)
   }, [rpcClient])
 
+  const refreshLaunchDiagnostics = useCallback(async () => {
+    const response =
+      await rpcClient['browser-ops'].runtime['launch-diagnostics'].$get()
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const result = (await response.json()) as {
+      diagnostics: BrowserOpsLaunchDiagnostics
+    }
+    setLaunchDiagnostics(result.diagnostics)
+  }, [rpcClient])
+
+  const refreshManagedInstances = useCallback(async () => {
+    const response = await rpcClient['browser-ops'].runtime.instances.$get()
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const result = (await response.json()) as {
+      instances: BrowserOpsManagedInstance[]
+    }
+    setManagedInstances(result.instances)
+  }, [rpcClient])
+
+  const refreshInstanceDiagnostics = useCallback(async () => {
+    const response =
+      await rpcClient['browser-ops'].runtime['instance-diagnostics'].$get()
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const result = (await response.json()) as {
+      diagnostics: BrowserOpsInstanceDiagnostics
+    }
+    setInstanceDiagnostics(result.diagnostics)
+  }, [rpcClient])
+
+  const refreshInstanceEvents = useCallback(async () => {
+    const response =
+      await rpcClient['browser-ops'].runtime['instance-events'].$get()
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const result = (await response.json()) as {
+      events: BrowserOpsInstanceEvent[]
+    }
+    setInstanceEvents(result.events)
+  }, [rpcClient])
+
   const importBringYourOwnProxy = async () => {
     const rawValue = byoProxyInput.trim()
     if (!rawValue) return
@@ -314,6 +367,107 @@ export const BrowserOpsPage: FC = () => {
     }
 
     loadProviderCatalog()
+
+    return () => {
+      cancelled = true
+    }
+  }, [rpcClient])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadManagedInstances = async () => {
+      try {
+        const response = await rpcClient['browser-ops'].runtime.instances.$get()
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        const result = (await response.json()) as {
+          instances: BrowserOpsManagedInstance[]
+        }
+        if (!cancelled) {
+          setManagedInstances(result.instances)
+          setBindingError(null)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setManagedInstances([])
+          setBindingError(
+            error instanceof Error
+              ? error.message
+              : 'Failed to load managed instances',
+          )
+        }
+      }
+    }
+
+    loadManagedInstances()
+
+    return () => {
+      cancelled = true
+    }
+  }, [rpcClient])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadInstanceDiagnostics = async () => {
+      try {
+        const response =
+          await rpcClient['browser-ops'].runtime['instance-diagnostics'].$get()
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        const result = (await response.json()) as {
+          diagnostics: BrowserOpsInstanceDiagnostics
+        }
+        if (!cancelled) {
+          setInstanceDiagnostics(result.diagnostics)
+          setBindingError(null)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setInstanceDiagnostics(null)
+          setBindingError(
+            error instanceof Error
+              ? error.message
+              : 'Failed to load instance diagnostics',
+          )
+        }
+      }
+    }
+
+    loadInstanceDiagnostics()
+
+    return () => {
+      cancelled = true
+    }
+  }, [rpcClient])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadInstanceEvents = async () => {
+      try {
+        const response =
+          await rpcClient['browser-ops'].runtime['instance-events'].$get()
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        const result = (await response.json()) as {
+          events: BrowserOpsInstanceEvent[]
+        }
+        if (!cancelled) {
+          setInstanceEvents(result.events)
+          setBindingError(null)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setInstanceEvents([])
+          setBindingError(
+            error instanceof Error
+              ? error.message
+              : 'Failed to load instance events',
+          )
+        }
+      }
+    }
+
+    loadInstanceEvents()
 
     return () => {
       cancelled = true
@@ -449,6 +603,40 @@ export const BrowserOpsPage: FC = () => {
     }
 
     loadLaunchExecutions()
+
+    return () => {
+      cancelled = true
+    }
+  }, [rpcClient])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadLaunchDiagnostics = async () => {
+      try {
+        const response =
+          await rpcClient['browser-ops'].runtime['launch-diagnostics'].$get()
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        const result = (await response.json()) as {
+          diagnostics: BrowserOpsLaunchDiagnostics
+        }
+        if (!cancelled) {
+          setLaunchDiagnostics(result.diagnostics)
+          setBindingError(null)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setLaunchDiagnostics(null)
+          setBindingError(
+            error instanceof Error
+              ? error.message
+              : 'Failed to load launch diagnostics',
+          )
+        }
+      }
+    }
+
+    loadLaunchDiagnostics()
 
     return () => {
       cancelled = true
@@ -746,6 +934,10 @@ export const BrowserOpsPage: FC = () => {
       await refreshRuntimeAssets()
       await refreshCookieVaults()
       await refreshLaunchBundles()
+      await refreshLaunchExecutions()
+      await refreshLaunchDiagnostics()
+      await refreshManagedInstances()
+      await refreshInstanceDiagnostics()
       await refreshWindowOwnership()
       await refreshRuntimeDiagnostics()
       toast.success('Route released')
@@ -795,6 +987,10 @@ export const BrowserOpsPage: FC = () => {
       await refreshRuntimeAssets()
       await refreshCookieVaults()
       await refreshLaunchBundles()
+      await refreshLaunchExecutions()
+      await refreshLaunchDiagnostics()
+      await refreshManagedInstances()
+      await refreshInstanceDiagnostics()
       await refreshWindowOwnership()
       await refreshRuntimeDiagnostics()
       toast.success('Managed window opened and bound')
@@ -918,6 +1114,9 @@ export const BrowserOpsPage: FC = () => {
       await refreshCookieVaults()
       await refreshLaunchBundles()
       await refreshLaunchExecutions()
+      await refreshLaunchDiagnostics()
+      await refreshManagedInstances()
+      await refreshInstanceDiagnostics()
       toast.success('Runtime reconcile completed')
     } catch (error) {
       setBindingError(
@@ -940,6 +1139,10 @@ export const BrowserOpsPage: FC = () => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
       await refreshLaunchExecutions()
+      await refreshLaunchDiagnostics()
+      await refreshManagedInstances()
+      await refreshInstanceDiagnostics()
+      await refreshInstanceEvents()
       toast.success(execute ? 'Launch requested' : 'Launch prepared')
     } catch (error) {
       setBindingError(
@@ -964,6 +1167,10 @@ export const BrowserOpsPage: FC = () => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
       await refreshLaunchExecutions()
+      await refreshLaunchDiagnostics()
+      await refreshManagedInstances()
+      await refreshInstanceDiagnostics()
+      await refreshInstanceEvents()
       toast.success('Launch execution updated')
     } catch (error) {
       setBindingError(
@@ -972,6 +1179,183 @@ export const BrowserOpsPage: FC = () => {
           : 'Failed to stop launch execution',
       )
       toast.error('Failed to stop launch execution')
+    } finally {
+      setBindingPending(false)
+    }
+  }
+
+  const reconcileLaunchExecutions = async () => {
+    setBindingPending(true)
+    setBindingError(null)
+
+    try {
+      const response = await rpcClient[
+        'browser-ops'
+      ].runtime.launch.reconcile.$post({
+        json: {
+          stopOrphanLaunchedExecutions: true,
+        },
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+      await refreshLaunchExecutions()
+      await refreshLaunchDiagnostics()
+      await refreshManagedInstances()
+      await refreshInstanceDiagnostics()
+      await refreshInstanceEvents()
+      toast.success('Launch reconcile completed')
+    } catch (error) {
+      setBindingError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to reconcile launch executions',
+      )
+      toast.error('Failed to reconcile launch executions')
+    } finally {
+      setBindingPending(false)
+    }
+  }
+
+  const refreshManagedInstance = async (instanceId: string) => {
+    setBindingPending(true)
+    setBindingError(null)
+
+    try {
+      const response = await rpcClient[
+        'browser-ops'
+      ].runtime.instances.refresh.$post({
+        json: { instanceId },
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+      await refreshManagedInstances()
+      await refreshInstanceDiagnostics()
+      await refreshInstanceEvents()
+      toast.success('Managed instance refreshed')
+    } catch (error) {
+      setBindingError(
+        error instanceof Error ? error.message : 'Failed to refresh instance',
+      )
+      toast.error('Failed to refresh instance')
+    } finally {
+      setBindingPending(false)
+    }
+  }
+
+  const reconcileInstances = async () => {
+    setBindingPending(true)
+    setBindingError(null)
+
+    try {
+      const response = await rpcClient[
+        'browser-ops'
+      ].runtime.instances.reconcile.$post({
+        json: {
+          stopOrphanInstances: true,
+          refreshHealth: true,
+        },
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+      await refreshManagedInstances()
+      await refreshInstanceDiagnostics()
+      toast.success('Instance reconcile completed')
+    } catch (error) {
+      setBindingError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to reconcile instances',
+      )
+      toast.error('Failed to reconcile instances')
+    } finally {
+      setBindingPending(false)
+    }
+  }
+
+  const refreshAllInstances = async () => {
+    setBindingPending(true)
+    setBindingError(null)
+
+    try {
+      const response = await rpcClient['browser-ops'].runtime.instances[
+        'refresh-all'
+      ].$post({
+        json: {},
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+      await refreshManagedInstances()
+      await refreshInstanceDiagnostics()
+      await refreshInstanceEvents()
+      toast.success('All instances refreshed')
+    } catch (error) {
+      setBindingError(
+        error instanceof Error ? error.message : 'Failed to refresh instances',
+      )
+      toast.error('Failed to refresh instances')
+    } finally {
+      setBindingPending(false)
+    }
+  }
+
+  const restartInstance = async (instanceId: string) => {
+    setBindingPending(true)
+    setBindingError(null)
+
+    try {
+      const response = await rpcClient[
+        'browser-ops'
+      ].runtime.instances.restart.$post({
+        json: {
+          instanceId,
+          execute: true,
+        },
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+      await refreshLaunchExecutions()
+      await refreshManagedInstances()
+      await refreshInstanceDiagnostics()
+      await refreshInstanceEvents()
+      toast.success('Instance restart requested')
+    } catch (error) {
+      setBindingError(
+        error instanceof Error ? error.message : 'Failed to restart instance',
+      )
+      toast.error('Failed to restart instance')
+    } finally {
+      setBindingPending(false)
+    }
+  }
+
+  const hardCleanupInstance = async (instanceId: string) => {
+    setBindingPending(true)
+    setBindingError(null)
+
+    try {
+      const response = await rpcClient['browser-ops'].runtime.instances[
+        'hard-cleanup'
+      ].$post({
+        json: {
+          instanceId,
+          removeExecution: true,
+        },
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+      await refreshLaunchExecutions()
+      await refreshLaunchDiagnostics()
+      await refreshManagedInstances()
+      await refreshInstanceDiagnostics()
+      await refreshInstanceEvents()
+      toast.success('Instance hard cleanup completed')
+    } catch (error) {
+      setBindingError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to hard cleanup instance',
+      )
+      toast.error('Failed to hard cleanup instance')
     } finally {
       setBindingPending(false)
     }
@@ -1007,6 +1391,10 @@ export const BrowserOpsPage: FC = () => {
       await refreshRuntimeAssets()
       await refreshCookieVaults()
       await refreshLaunchBundles()
+      await refreshLaunchExecutions()
+      await refreshLaunchDiagnostics()
+      await refreshManagedInstances()
+      await refreshInstanceDiagnostics()
       await refreshWindowOwnership()
       await refreshRuntimeDiagnostics()
       toast.success('Bound allocation to active window')
@@ -1040,6 +1428,10 @@ export const BrowserOpsPage: FC = () => {
       await refreshRuntimeAssets()
       await refreshCookieVaults()
       await refreshLaunchBundles()
+      await refreshLaunchExecutions()
+      await refreshLaunchDiagnostics()
+      await refreshManagedInstances()
+      await refreshInstanceDiagnostics()
       await refreshWindowOwnership()
       await refreshRuntimeDiagnostics()
       toast.success('Runtime binding removed')
@@ -2285,6 +2677,21 @@ export const BrowserOpsPage: FC = () => {
                     />
                   </div>
 
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <MiniInfo
+                      label="CDP Port"
+                      value={execution.ports.cdp.toString()}
+                    />
+                    <MiniInfo
+                      label="Server Port"
+                      value={execution.ports.server.toString()}
+                    />
+                    <MiniInfo
+                      label="Extension Port"
+                      value={execution.ports.extension.toString()}
+                    />
+                  </div>
+
                   <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 font-mono text-sm">
                     {execution.commandPreview}
                   </div>
@@ -2305,6 +2712,281 @@ export const BrowserOpsPage: FC = () => {
           ) : (
             <div className="rounded-xl border border-border border-dashed px-4 py-6 text-center text-muted-foreground text-sm">
               No launch executions yet.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle>Managed Instances</CardTitle>
+          <CardDescription>
+            Instance registry that ties launch executions, ports, and health
+            state together.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={bindingPending}
+              onClick={refreshAllInstances}
+            >
+              Refresh All
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={bindingPending}
+              onClick={reconcileInstances}
+            >
+              Reconcile Instances
+            </Button>
+          </div>
+
+          {managedInstances.length ? (
+            <div className="space-y-4">
+              {managedInstances.map((instance) => (
+                <div
+                  key={instance.instanceId}
+                  className="space-y-3 rounded-xl border border-border/70 bg-background p-4"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="font-medium text-sm">
+                      {instance.profileId}
+                    </div>
+                    <Badge variant="outline">{instance.state}</Badge>
+                    <Badge variant="outline">{instance.specId}</Badge>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-4">
+                    <MiniInfo
+                      label="Binary"
+                      value={instance.binaryPath ?? 'not configured'}
+                    />
+                    <MiniInfo
+                      label="PID"
+                      value={instance.pid?.toString() ?? 'n/a'}
+                    />
+                    <MiniInfo
+                      label="Health"
+                      value={`${instance.health.cdpReachable ? 'cdp' : '-'} / ${instance.health.serverReachable ? 'server' : '-'} / ${instance.health.extensionReachable ? 'ext' : '-'}`}
+                    />
+                    <MiniInfo
+                      label="Checked"
+                      value={
+                        instance.lastHealthCheckAt
+                          ? new Date(
+                              instance.lastHealthCheckAt,
+                            ).toLocaleString()
+                          : 'never'
+                      }
+                    />
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <MiniInfo
+                      label="CDP"
+                      value={instance.ports.cdp.toString()}
+                    />
+                    <MiniInfo
+                      label="Server"
+                      value={instance.ports.server.toString()}
+                    />
+                    <MiniInfo
+                      label="Extension"
+                      value={instance.ports.extension.toString()}
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={bindingPending}
+                      onClick={() =>
+                        refreshManagedInstance(instance.instanceId)
+                      }
+                    >
+                      Refresh Instance
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={bindingPending}
+                      onClick={() => restartInstance(instance.instanceId)}
+                    >
+                      Restart Instance
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={bindingPending}
+                      onClick={() => hardCleanupInstance(instance.instanceId)}
+                    >
+                      Hard Cleanup
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-border border-dashed px-4 py-6 text-center text-muted-foreground text-sm">
+              No managed instances yet.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle>Instance Diagnostics</CardTitle>
+          <CardDescription>
+            Drift detection between launch executions and registered managed
+            instances.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {instanceDiagnostics ? (
+            <>
+              <div className="grid gap-3 md:grid-cols-4">
+                <MiniInfo
+                  label="Running"
+                  value={instanceDiagnostics.runningInstanceIds.length.toString()}
+                />
+                <MiniInfo
+                  label="Unreachable"
+                  value={instanceDiagnostics.unreachableInstanceIds.length.toString()}
+                />
+                <MiniInfo
+                  label="Missing Exec"
+                  value={instanceDiagnostics.instanceIdsWithoutExecutions.length.toString()}
+                />
+                <MiniInfo
+                  label="Missing Instance"
+                  value={instanceDiagnostics.executionIdsWithoutInstances.length.toString()}
+                />
+              </div>
+
+              <DiagnosticsList
+                title="Instances Without Executions"
+                items={instanceDiagnostics.instanceIdsWithoutExecutions}
+              />
+              <DiagnosticsList
+                title="Executions Without Instances"
+                items={instanceDiagnostics.executionIdsWithoutInstances}
+              />
+              <DiagnosticsList
+                title="Unreachable Instances"
+                items={instanceDiagnostics.unreachableInstanceIds}
+              />
+            </>
+          ) : (
+            <div className="rounded-xl border border-border border-dashed px-4 py-6 text-center text-muted-foreground text-sm">
+              Instance diagnostics are not available yet.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle>Instance Events</CardTitle>
+          <CardDescription>
+            Audit trail for launch, instance, and reconciliation operations.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {instanceEvents.length ? (
+            <div className="space-y-3">
+              {instanceEvents.map((event) => (
+                <div
+                  key={event.eventId}
+                  className="rounded-xl border border-border/70 bg-background p-4"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">{event.scope}</Badge>
+                    <Badge variant="outline">{event.action}</Badge>
+                    <span className="text-muted-foreground text-sm">
+                      {new Date(event.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="mt-2 font-medium text-sm">{event.message}</div>
+                  <div className="mt-2 grid gap-3 md:grid-cols-4">
+                    <MiniInfo label="Instance" value={event.instanceId ?? 'n/a'} />
+                    <MiniInfo label="Execution" value={event.executionId ?? 'n/a'} />
+                    <MiniInfo label="Spec" value={event.specId ?? 'n/a'} />
+                    <MiniInfo label="Profile" value={event.profileId ?? 'n/a'} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-border border-dashed px-4 py-6 text-center text-muted-foreground text-sm">
+              No instance events recorded yet.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle>Launch Diagnostics</CardTitle>
+          <CardDescription>
+            Drift detection for launch executions that are no longer backed by a
+            runtime spec or launch bundle.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={bindingPending}
+              onClick={reconcileLaunchExecutions}
+            >
+              Reconcile Launches
+            </Button>
+          </div>
+
+          {launchDiagnostics ? (
+            <>
+              <div className="grid gap-3 md:grid-cols-4">
+                <MiniInfo
+                  label="Launched"
+                  value={launchDiagnostics.launchedExecutionIds.length.toString()}
+                />
+                <MiniInfo
+                  label="Orphan Launched"
+                  value={launchDiagnostics.orphanLaunchedExecutionIds.length.toString()}
+                />
+                <MiniInfo
+                  label="Missing Spec"
+                  value={launchDiagnostics.executionIdsWithoutSpecs.length.toString()}
+                />
+                <MiniInfo
+                  label="Missing Bundle"
+                  value={launchDiagnostics.executionIdsWithoutBundles.length.toString()}
+                />
+              </div>
+
+              <DiagnosticsList
+                title="Executions Without Specs"
+                items={launchDiagnostics.executionIdsWithoutSpecs}
+              />
+              <DiagnosticsList
+                title="Executions Without Bundles"
+                items={launchDiagnostics.executionIdsWithoutBundles}
+              />
+              <DiagnosticsList
+                title="Orphan Launched Executions"
+                items={launchDiagnostics.orphanLaunchedExecutionIds}
+              />
+            </>
+          ) : (
+            <div className="rounded-xl border border-border border-dashed px-4 py-6 text-center text-muted-foreground text-sm">
+              Launch diagnostics are not available yet.
             </div>
           )}
         </CardContent>

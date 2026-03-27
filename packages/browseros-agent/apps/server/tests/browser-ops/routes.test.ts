@@ -1,8 +1,11 @@
 import { describe, it } from 'bun:test'
 import assert from 'node:assert'
 import type {
+  BrowserOpsInstanceDiagnostics,
+  BrowserOpsInstanceEvent,
   BrowserOpsLaunchBundle,
   BrowserOpsLaunchExecution,
+  BrowserOpsManagedInstance,
   BrowserOpsRuntimeAssetManifest,
   BrowserOpsRuntimeSessionSpec,
 } from '@browseros/shared/browser-ops'
@@ -83,6 +86,8 @@ function createRouteApp() {
   const assets = new Map<string, BrowserOpsRuntimeAssetManifest>()
   const bundles = new Map<string, BrowserOpsLaunchBundle>()
   const executions = new Map<string, BrowserOpsLaunchExecution>()
+  const instances = new Map<string, BrowserOpsManagedInstance>()
+  const events: BrowserOpsInstanceEvent[] = []
   const vaults = new Map<
     string,
     {
@@ -423,6 +428,32 @@ function createRouteApp() {
       async listExecutions() {
         return [...executions.values()]
       },
+      async getDiagnostics(args) {
+        const currentExecutions = [...executions.values()]
+        return {
+          executionIdsWithoutSpecs: currentExecutions
+            .filter(
+              (execution) => !args.activeSpecIds.includes(execution.specId),
+            )
+            .map((execution) => execution.executionId),
+          executionIdsWithoutBundles: currentExecutions
+            .filter(
+              (execution) => !args.activeBundleIds.includes(execution.bundleId),
+            )
+            .map((execution) => execution.executionId),
+          launchedExecutionIds: currentExecutions
+            .filter((execution) => execution.state === 'launched')
+            .map((execution) => execution.executionId),
+          orphanLaunchedExecutionIds: currentExecutions
+            .filter(
+              (execution) =>
+                execution.state === 'launched' &&
+                (!args.activeSpecIds.includes(execution.specId) ||
+                  !args.activeBundleIds.includes(execution.bundleId)),
+            )
+            .map((execution) => execution.executionId),
+        }
+      },
       async launchBundle(bundle, options) {
         const executionId =
           options?.execute === true
@@ -441,6 +472,11 @@ function createRouteApp() {
           commandPreview: bundle.launcherCommandPreview,
           dryRun: options?.execute !== true,
           pid: options?.execute ? 4242 : null,
+          ports: {
+            cdp: 9501,
+            server: 9601,
+            extension: 9801,
+          },
           notes: [],
         }
         executions.set(execution.executionId, execution)
@@ -458,6 +494,241 @@ function createRouteApp() {
         } satisfies BrowserOpsLaunchExecution
         executions.set(executionId, stopped)
         return stopped
+      },
+      async cleanupExecution(executionId) {
+        const existing = executions.get(executionId)
+        if (!existing) return null
+        executions.delete(executionId)
+        return existing
+      },
+      async stopExecutionsForSpecs(specIds) {
+        const stopped: BrowserOpsLaunchExecution[] = []
+        for (const execution of executions.values()) {
+          if (!specIds.includes(execution.specId)) continue
+          const next = {
+            ...execution,
+            state:
+              execution.state === 'prepared' || execution.state === 'failed'
+                ? execution.state
+                : 'stopped',
+          } satisfies BrowserOpsLaunchExecution
+          executions.set(execution.executionId, next)
+          stopped.push(next)
+        }
+        return stopped
+      },
+    },
+    runtimeInstanceRegistry: {
+      async listInstances() {
+        return [...instances.values()]
+      },
+      async getInstance(instanceId) {
+        return instances.get(instanceId) ?? null
+      },
+      async refreshInstanceHealth(instanceId) {
+        const existing = instances.get(instanceId)
+        if (!existing) return null
+        const next = {
+          ...existing,
+          lastHealthCheckAt: new Date().toISOString(),
+        } satisfies BrowserOpsManagedInstance
+        instances.set(instanceId, next)
+        return next
+      },
+      async refreshAllInstanceHealth() {
+        const refreshed: BrowserOpsManagedInstance[] = []
+        for (const instance of instances.values()) {
+          const next = {
+            ...instance,
+            lastHealthCheckAt: new Date().toISOString(),
+          } satisfies BrowserOpsManagedInstance
+          instances.set(instance.instanceId, next)
+          refreshed.push(next)
+        }
+        return refreshed
+      },
+      async refreshInstances(instanceIds) {
+        const refreshed: BrowserOpsManagedInstance[] = []
+        for (const instanceId of instanceIds) {
+          const existing = instances.get(instanceId)
+          if (!existing) continue
+          const next = {
+            ...existing,
+            lastHealthCheckAt: new Date().toISOString(),
+          } satisfies BrowserOpsManagedInstance
+          instances.set(instanceId, next)
+          refreshed.push(next)
+        }
+        return refreshed
+      },
+      async registerExecution(bundle, execution) {
+        const instance: BrowserOpsManagedInstance = {
+          instanceId: `instance-${execution.executionId}`,
+          executionId: execution.executionId,
+          bundleId: bundle.bundleId,
+          specId: bundle.specId,
+          profileId: bundle.profileId,
+          createdAt: new Date().toISOString(),
+          state:
+            execution.state === 'launched'
+              ? 'running'
+              : execution.state === 'failed'
+                ? 'failed'
+                : execution.state === 'stopped'
+                  ? 'stopped'
+                  : 'prepared',
+          binaryPath: execution.binaryPath,
+          pid: execution.pid,
+          ports: execution.ports,
+          lastHealthCheckAt: null,
+          health: {
+            cdpReachable: execution.state === 'launched',
+            serverReachable: execution.state === 'launched',
+            extensionReachable: execution.state === 'launched',
+          },
+          notes: [],
+        }
+        instances.set(instance.instanceId, instance)
+        return instance
+      },
+      async markExecutionState(execution) {
+        const existing = [...instances.values()].find(
+          (instance) => instance.executionId === execution.executionId,
+        )
+        if (!existing) return null
+        const next = {
+          ...existing,
+          state:
+            execution.state === 'launched'
+              ? 'running'
+              : execution.state === 'failed'
+                ? 'failed'
+                : execution.state === 'stopped'
+                  ? 'stopped'
+                  : 'prepared',
+          pid: execution.pid,
+        } satisfies BrowserOpsManagedInstance
+        instances.set(existing.instanceId, next)
+        return next
+      },
+      async getDiagnostics(args) {
+        const current = [...instances.values()]
+        return {
+          instanceIdsWithoutExecutions: current
+            .filter(
+              (instance) => !args.executionIds.includes(instance.executionId),
+            )
+            .map((instance) => instance.instanceId),
+          executionIdsWithoutInstances: args.executionIds.filter(
+            (executionId) =>
+              !current.some((instance) => instance.executionId === executionId),
+          ),
+          runningInstanceIds: current
+            .filter((instance) => instance.state === 'running')
+            .map((instance) => instance.instanceId),
+          unreachableInstanceIds: current
+            .filter((instance) => instance.state === 'unreachable')
+            .map((instance) => instance.instanceId),
+        } satisfies BrowserOpsInstanceDiagnostics
+      },
+      async stopInstancesForExecutions(executionIds) {
+        const stopped: BrowserOpsManagedInstance[] = []
+        for (const instance of instances.values()) {
+          if (!executionIds.includes(instance.executionId)) continue
+          const next = {
+            ...instance,
+            state: instance.state === 'failed' ? 'failed' : 'stopped',
+          } satisfies BrowserOpsManagedInstance
+          instances.set(instance.instanceId, next)
+          stopped.push(next)
+        }
+        return stopped
+      },
+      async reconcileInstances(args) {
+        const current = [...instances.values()]
+        const stoppedInstanceIds: string[] = []
+        const refreshedInstanceIds: string[] = []
+
+        if (args.refreshHealth !== false) {
+          for (const instance of current) {
+            const next = {
+              ...instance,
+              lastHealthCheckAt: new Date().toISOString(),
+            } satisfies BrowserOpsManagedInstance
+            instances.set(instance.instanceId, next)
+            refreshedInstanceIds.push(instance.instanceId)
+          }
+        }
+
+        if (args.stopOrphanInstances !== false) {
+          for (const instance of current) {
+            if (args.executionIds.includes(instance.executionId)) continue
+            const next = {
+              ...instance,
+              state: instance.state === 'failed' ? 'failed' : 'stopped',
+            } satisfies BrowserOpsManagedInstance
+            instances.set(instance.instanceId, next)
+            stoppedInstanceIds.push(instance.instanceId)
+          }
+        }
+
+        return {
+          stoppedInstanceIds,
+          refreshedInstanceIds,
+          diagnostics: {
+            instanceIdsWithoutExecutions: [...instances.values()]
+              .filter(
+                (instance) => !args.executionIds.includes(instance.executionId),
+              )
+              .map((instance) => instance.instanceId),
+            executionIdsWithoutInstances: args.executionIds.filter(
+              (executionId) =>
+                ![...instances.values()].some(
+                  (instance) => instance.executionId === executionId,
+                ),
+            ),
+            runningInstanceIds: [...instances.values()]
+              .filter((instance) => instance.state === 'running')
+              .map((instance) => instance.instanceId),
+            unreachableInstanceIds: [...instances.values()]
+              .filter((instance) => instance.state === 'unreachable')
+              .map((instance) => instance.instanceId),
+          } satisfies BrowserOpsInstanceDiagnostics,
+        }
+      },
+      async cleanupInstances(args) {
+        const removed: string[] = []
+        const current = [...instances.values()]
+        for (const instance of current) {
+          const isOrphan = !((args.executionIds ?? []) as string[]).includes(
+            instance.executionId,
+          )
+          const shouldRemove =
+            ((args.removeStopped ?? true) && instance.state === 'stopped') ||
+            ((args.removeFailed ?? true) && instance.state === 'failed') ||
+            ((args.removeOrphan ?? true) && isOrphan)
+          if (!shouldRemove) continue
+          instances.delete(instance.instanceId)
+          removed.push(instance.instanceId)
+        }
+        return removed
+      },
+      async cleanupInstance(instanceId) {
+        const existing = instances.get(instanceId)
+        if (!existing) return null
+        instances.delete(instanceId)
+        return existing
+      },
+    },
+    runtimeInstanceEventStore: {
+      async listEvents() {
+        return [...events]
+      },
+      async appendEvent(event) {
+        events.unshift(event)
+      },
+      async clearEvents() {
+        events.length = 0
       },
     },
   })
@@ -675,6 +946,82 @@ describe('Browser Ops routes', () => {
     assert.strictEqual(json.ownership.length, 2)
     assert.strictEqual(json.ownership[0]?.clientId, 'client-owner-4')
     assert.strictEqual(json.ownership[0]?.windowId, 4)
+  })
+
+  it('registers and lists managed instances', async () => {
+    const app = createRouteApp()
+    const payload = createPreviewPayload()
+
+    const allocateResponse = await app.request('/allocate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const allocateJson = (await allocateResponse.json()) as {
+      allocation: { allocationId: string }
+    }
+
+    await app.request('/runtime/open-managed-window', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        allocationId: allocateJson.allocation.allocationId,
+        url: 'https://sellercentral.amazon.com',
+        hidden: false,
+        restoreCookieVault: false,
+      }),
+    })
+
+    const bundlesResponse = await app.request('/runtime/launch-bundles')
+    const bundlesJson = (await bundlesResponse.json()) as {
+      bundles: { specId: string }[]
+    }
+    const specId = bundlesJson.bundles[0]?.specId
+    assert.ok(specId)
+
+    await app.request('/runtime/launch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        specId,
+        execute: true,
+      }),
+    })
+
+    const instancesResponse = await app.request('/runtime/instances')
+    assert.strictEqual(instancesResponse.status, 200)
+    const instancesJson = (await instancesResponse.json()) as {
+      instances: { instanceId: string; state: string; ports: { cdp: number } }[]
+    }
+    assert.strictEqual(instancesJson.instances.length, 1)
+    assert.strictEqual(instancesJson.instances[0]?.state, 'running')
+    assert.ok((instancesJson.instances[0]?.ports.cdp ?? 0) > 0)
+
+    const refreshResponse = await app.request('/runtime/instances/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        instanceId: instancesJson.instances[0]?.instanceId,
+      }),
+    })
+    assert.strictEqual(refreshResponse.status, 200)
+
+    const refreshAllResponse = await app.request(
+      '/runtime/instances/refresh-all',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      },
+    )
+    assert.strictEqual(refreshAllResponse.status, 200)
+
+    const eventsResponse = await app.request('/runtime/instance-events')
+    assert.strictEqual(eventsResponse.status, 200)
+    const eventsJson = (await eventsResponse.json()) as {
+      events: { action: string }[]
+    }
+    assert.ok(eventsJson.events.length >= 2)
   })
 
   it('returns runtime diagnostics', async () => {
@@ -994,10 +1341,16 @@ describe('Browser Ops routes', () => {
     })
     assert.strictEqual(prepareResponse.status, 201)
     const prepareJson = (await prepareResponse.json()) as {
-      execution: { state: string; dryRun: boolean; executionId: string }
+      execution: {
+        state: string
+        dryRun: boolean
+        executionId: string
+        ports: { cdp: number; server: number; extension: number }
+      }
     }
     assert.strictEqual(prepareJson.execution.state, 'prepared')
     assert.strictEqual(prepareJson.execution.dryRun, true)
+    assert.strictEqual(prepareJson.execution.ports.cdp, 9501)
 
     const launchResponse = await app.request('/runtime/launch', {
       method: 'POST',
@@ -1009,10 +1362,16 @@ describe('Browser Ops routes', () => {
     })
     assert.strictEqual(launchResponse.status, 201)
     const launchJson = (await launchResponse.json()) as {
-      execution: { state: string; pid: number | null; executionId: string }
+      execution: {
+        state: string
+        pid: number | null
+        executionId: string
+        ports: { cdp: number; server: number; extension: number }
+      }
     }
     assert.strictEqual(launchJson.execution.state, 'launched')
     assert.strictEqual(launchJson.execution.pid, 4242)
+    assert.strictEqual(launchJson.execution.ports.extension, 9801)
 
     const listExecutionsResponse = await app.request(
       '/runtime/launch-executions',
@@ -1034,5 +1393,211 @@ describe('Browser Ops routes', () => {
       execution: { state: string }
     }
     assert.strictEqual(stopJson.execution.state, 'stopped')
+  })
+
+  it('returns launch diagnostics and reconciles orphan executions', async () => {
+    const app = createRouteApp()
+    const payload = createPreviewPayload()
+
+    const allocateResponse = await app.request('/allocate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const allocateJson = (await allocateResponse.json()) as {
+      allocation: { allocationId: string }
+    }
+
+    await app.request('/runtime/open-managed-window', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        allocationId: allocateJson.allocation.allocationId,
+        url: 'https://sellercentral.amazon.com',
+        hidden: false,
+        restoreCookieVault: false,
+      }),
+    })
+
+    const bundlesResponse = await app.request('/runtime/launch-bundles')
+    const bundlesJson = (await bundlesResponse.json()) as {
+      bundles: { specId: string }[]
+    }
+    const specId = bundlesJson.bundles[0]?.specId
+    assert.ok(specId)
+
+    await app.request('/runtime/launch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        specId,
+        execute: true,
+      }),
+    })
+
+    const diagnosticsResponse = await app.request('/runtime/launch-diagnostics')
+    assert.strictEqual(diagnosticsResponse.status, 200)
+    const diagnosticsJson = (await diagnosticsResponse.json()) as {
+      diagnostics: {
+        launchedExecutionIds: string[]
+        orphanLaunchedExecutionIds: string[]
+      }
+    }
+    assert.strictEqual(
+      diagnosticsJson.diagnostics.launchedExecutionIds.length,
+      1,
+    )
+    assert.strictEqual(
+      diagnosticsJson.diagnostics.orphanLaunchedExecutionIds.length,
+      0,
+    )
+
+    const instanceDiagnosticsResponse = await app.request(
+      '/runtime/instance-diagnostics',
+    )
+    assert.strictEqual(instanceDiagnosticsResponse.status, 200)
+    const instanceDiagnosticsJson =
+      (await instanceDiagnosticsResponse.json()) as {
+        diagnostics: { runningInstanceIds: string[] }
+      }
+    assert.strictEqual(
+      instanceDiagnosticsJson.diagnostics.runningInstanceIds.length,
+      1,
+    )
+
+    const releaseResponse = await app.request('/release', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        allocationId: allocateJson.allocation.allocationId,
+      }),
+    })
+    assert.strictEqual(releaseResponse.status, 200)
+
+    const afterReleaseDiagnosticsResponse = await app.request(
+      '/runtime/launch-diagnostics',
+    )
+    const afterReleaseDiagnosticsJson =
+      (await afterReleaseDiagnosticsResponse.json()) as {
+        diagnostics: { orphanLaunchedExecutionIds: string[] }
+      }
+    assert.strictEqual(
+      afterReleaseDiagnosticsJson.diagnostics.orphanLaunchedExecutionIds.length,
+      0,
+    )
+
+    const executionsResponse = await app.request('/runtime/launch-executions')
+    const executionsJson = (await executionsResponse.json()) as {
+      executions: { state: string }[]
+    }
+    assert.ok(
+      executionsJson.executions.some(
+        (execution) => execution.state === 'stopped',
+      ),
+    )
+
+    const reconcileResponse = await app.request('/runtime/launch/reconcile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        stopOrphanLaunchedExecutions: true,
+      }),
+    })
+    assert.strictEqual(reconcileResponse.status, 200)
+
+    const instanceReconcileResponse = await app.request(
+      '/runtime/instances/reconcile',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stopOrphanInstances: true,
+          refreshHealth: true,
+        }),
+      },
+    )
+    assert.strictEqual(instanceReconcileResponse.status, 200)
+  })
+
+  it('restarts and cleans up managed instances', async () => {
+    const app = createRouteApp()
+    const payload = createPreviewPayload()
+
+    const allocateResponse = await app.request('/allocate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const allocateJson = (await allocateResponse.json()) as {
+      allocation: { allocationId: string }
+    }
+
+    await app.request('/runtime/open-managed-window', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        allocationId: allocateJson.allocation.allocationId,
+        url: 'https://sellercentral.amazon.com',
+        hidden: false,
+        restoreCookieVault: false,
+      }),
+    })
+
+    const bundlesResponse = await app.request('/runtime/launch-bundles')
+    const bundlesJson = (await bundlesResponse.json()) as {
+      bundles: { specId: string }[]
+    }
+    const specId = bundlesJson.bundles[0]?.specId
+    assert.ok(specId)
+
+    await app.request('/runtime/launch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        specId,
+        execute: true,
+      }),
+    })
+
+    const instancesResponse = await app.request('/runtime/instances')
+    const instancesJson = (await instancesResponse.json()) as {
+      instances: { instanceId: string }[]
+    }
+    const instanceId = instancesJson.instances[0]?.instanceId
+    assert.ok(instanceId)
+
+    const restartResponse = await app.request('/runtime/instances/restart', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        instanceId,
+        execute: false,
+      }),
+    })
+    assert.strictEqual(restartResponse.status, 201)
+
+    const hardCleanupResponse = await app.request(
+      '/runtime/instances/hard-cleanup',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          instanceId,
+          removeExecution: true,
+        }),
+      },
+    )
+    assert.strictEqual(hardCleanupResponse.status, 200)
+
+    const cleanupResponse = await app.request('/runtime/instances/cleanup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        removeStopped: true,
+        removeFailed: true,
+        removeOrphan: false,
+      }),
+    })
+    assert.strictEqual(cleanupResponse.status, 200)
   })
 })

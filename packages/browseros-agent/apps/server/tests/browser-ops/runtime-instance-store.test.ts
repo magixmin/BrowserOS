@@ -5,14 +5,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let rootDir: string
-let launchExecutionsDir: string
 let instancesDir: string
 
 beforeEach(async () => {
-  rootDir = await mkdtemp(join(tmpdir(), 'browser-ops-launch-exec-'))
-  launchExecutionsDir = join(rootDir, 'launch-executions')
+  rootDir = await mkdtemp(join(tmpdir(), 'browser-ops-instance-'))
   instancesDir = join(rootDir, 'instances')
-  await mkdir(launchExecutionsDir, { recursive: true })
   await mkdir(instancesDir, { recursive: true })
 })
 
@@ -22,8 +19,8 @@ afterEach(async () => {
 
 mock.module('../../src/lib/browseros-dir', () => ({
   getBrowserOpsDir: () => rootDir,
-  getBrowserOpsLaunchExecutionsDir: () => launchExecutionsDir,
   getBrowserOpsInstancesDir: () => instancesDir,
+  getBrowserOpsLaunchExecutionsDir: () => join(rootDir, 'launch-executions'),
   getBrowserOpsLaunchBundlesDir: () => join(rootDir, 'launch-bundles'),
   getBrowserOpsProfilesDir: () => join(rootDir, 'profiles'),
   getBrowserOpsCookieVaultsDir: () => join(rootDir, 'cookie-vaults'),
@@ -31,35 +28,40 @@ mock.module('../../src/lib/browseros-dir', () => ({
   getBrowserOpsRuntimeAssetsDir: () => join(rootDir, 'runtime-assets'),
 }))
 
-const { BrowserOpsRuntimeLauncherStore } = await import(
-  '../../src/api/services/browser-ops/runtime-launcher-store'
+const { BrowserOpsRuntimeInstanceStore } = await import(
+  '../../src/api/services/browser-ops/runtime-instance-store'
 )
 
-describe('BrowserOpsRuntimeLauncherStore', () => {
-  it('writes and lists launch executions', async () => {
-    const store = new BrowserOpsRuntimeLauncherStore()
+describe('BrowserOpsRuntimeInstanceStore', () => {
+  it('writes and lists managed instances', async () => {
+    const store = new BrowserOpsRuntimeInstanceStore()
 
-    await store.writeLaunchExecution({
-      executionId: '00000000-0000-4000-8000-000000000001',
-      bundleId: 'bundle-spec_1',
-      specId: 'spec_1',
-      profileId: 'profile_1',
+    await store.writeInstance({
+      instanceId: 'instance-1',
+      executionId: 'execution-1',
+      bundleId: 'bundle-1',
+      specId: 'spec-1',
+      profileId: 'profile-1',
       createdAt: new Date().toISOString(),
-      state: 'prepared',
-      binaryPath: null,
-      commandPreview: 'BrowserOS --user-data-dir=/tmp/profile',
-      dryRun: true,
-      pid: null,
+      state: 'running',
+      binaryPath: '/Applications/BrowserOS.app/Contents/MacOS/BrowserOS',
+      pid: 1234,
       ports: {
         cdp: 9501,
         server: 9601,
         extension: 9801,
       },
+      lastHealthCheckAt: null,
+      health: {
+        cdpReachable: true,
+        serverReachable: true,
+        extensionReachable: true,
+      },
       notes: [],
     })
 
-    const executions = await store.listLaunchExecutions()
-    assert.strictEqual(executions.length, 1)
-    assert.strictEqual(executions[0]?.specId, 'spec_1')
+    const instances = await store.listInstances()
+    assert.strictEqual(instances.length, 1)
+    assert.strictEqual(instances[0]?.specId, 'spec-1')
   })
 })

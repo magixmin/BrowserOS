@@ -1,4 +1,4 @@
-import { mkdir, readdir } from 'node:fs/promises'
+import { mkdir, readdir, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { BrowserOpsLaunchExecution } from '@browseros/shared/browser-ops'
 import { getBrowserOpsLaunchExecutionsDir } from '../../../lib/browseros-dir'
@@ -27,6 +27,7 @@ export interface BrowserOpsRuntimeLauncherPersistence {
     executionId: string,
   ): Promise<BrowserOpsLaunchExecution | null>
   writeLaunchExecution(execution: BrowserOpsLaunchExecution): Promise<void>
+  deleteLaunchExecution(executionId: string): Promise<void>
 }
 
 export class BrowserOpsRuntimeLauncherStore
@@ -75,5 +76,18 @@ export class BrowserOpsRuntimeLauncherStore
       `${sanitizeFileName(execution.executionId)}.json`,
     )
     await writeJsonFile(filePath, execution)
+  }
+
+  async deleteLaunchExecution(executionId: string): Promise<void> {
+    await ensureLaunchExecutionDir()
+    const filePath = join(
+      getBrowserOpsLaunchExecutionsDir(),
+      `${sanitizeFileName(executionId)}.json`,
+    )
+    try {
+      await unlink(filePath)
+    } catch {
+      // ignore missing files
+    }
   }
 }

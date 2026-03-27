@@ -40,6 +40,16 @@ export const DEV_PORTS = {
   extension: 9310,
 } as const
 
+/**
+ * Launcher-managed instance ports.
+ * Separate from the primary app ports to support additional isolated instances.
+ */
+export const LAUNCHER_PORTS = {
+  cdp: 9500,
+  server: 9600,
+  extension: 9800,
+} as const
+
 // OAuth callback port — must match the redirect_uri registered with OpenAI's Codex client ID
 export const OAUTH_CALLBACK_PORT = 1455
 

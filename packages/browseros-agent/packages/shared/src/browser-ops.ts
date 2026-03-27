@@ -274,7 +274,73 @@ export interface BrowserOpsLaunchExecution {
   commandPreview: string
   dryRun: boolean
   pid: number | null
+  ports: {
+    cdp: number
+    server: number
+    extension: number
+  }
   notes: string[]
+}
+
+export interface BrowserOpsLaunchDiagnostics {
+  executionIdsWithoutSpecs: string[]
+  executionIdsWithoutBundles: string[]
+  launchedExecutionIds: string[]
+  orphanLaunchedExecutionIds: string[]
+}
+
+export interface BrowserOpsManagedInstance {
+  instanceId: string
+  executionId: string
+  bundleId: string
+  specId: string
+  profileId: string
+  createdAt: string
+  state: 'prepared' | 'running' | 'stopped' | 'unreachable' | 'failed'
+  binaryPath: string | null
+  pid: number | null
+  ports: {
+    cdp: number
+    server: number
+    extension: number
+  }
+  lastHealthCheckAt: string | null
+  health: {
+    cdpReachable: boolean
+    serverReachable: boolean
+    extensionReachable: boolean
+  }
+  notes: string[]
+}
+
+export interface BrowserOpsInstanceDiagnostics {
+  instanceIdsWithoutExecutions: string[]
+  executionIdsWithoutInstances: string[]
+  runningInstanceIds: string[]
+  unreachableInstanceIds: string[]
+}
+
+export interface BrowserOpsInstanceEvent {
+  eventId: string
+  createdAt: string
+  scope: 'instance' | 'execution' | 'system'
+  action:
+    | 'launch_prepared'
+    | 'launch_started'
+    | 'launch_stopped'
+    | 'instance_registered'
+    | 'instance_refreshed'
+    | 'instances_refreshed'
+    | 'instances_reconciled'
+    | 'instance_restarted'
+    | 'instance_cleaned'
+    | 'launches_reconciled'
+  message: string
+  instanceId?: string
+  executionId?: string
+  specId?: string
+  profileId?: string
+  metadata?: Record<string, string | number | boolean | null>
 }
 
 export interface BrowserOpsCookieVaultDocument {

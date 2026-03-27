@@ -7,6 +7,14 @@ import { Hono } from 'hono'
 import type { ControllerBackend } from '../../browser/backends/types'
 import type { Browser } from '../../browser/browser'
 import {
+  type BrowserOpsRuntimeInstanceEventStore,
+  BrowserOpsRuntimeInstanceEventStoreService,
+} from '../services/browser-ops/runtime-instance-event-store'
+import {
+  type BrowserOpsRuntimeInstanceRegistry,
+  BrowserOpsRuntimeInstanceRegistryService,
+} from '../services/browser-ops/runtime-instance-registry'
+import {
   type BrowserOpsRuntimeLauncher,
   BrowserOpsRuntimeLauncherService,
 } from '../services/browser-ops/runtime-launcher'
@@ -16,13 +24,20 @@ import {
 } from '../services/browser-ops/runtime-store'
 import {
   BrowserOpsBindAllocationSchema,
+  BrowserOpsCleanupInstancesSchema,
   BrowserOpsCookieVaultBindingSchema,
+  BrowserOpsHardCleanupInstanceSchema,
   BrowserOpsLaunchBundleSchema,
   BrowserOpsLaunchExecutionSchema,
   BrowserOpsOpenManagedWindowSchema,
   BrowserOpsPreviewRequestSchema,
+  BrowserOpsReconcileInstancesSchema,
+  BrowserOpsReconcileLaunchExecutionsSchema,
   BrowserOpsReconcileRuntimeSchema,
+  BrowserOpsRefreshAllInstancesSchema,
+  BrowserOpsRefreshInstanceSchema,
   BrowserOpsReleaseAllocationSchema,
+  BrowserOpsRestartInstanceSchema,
   BrowserOpsStopLaunchExecutionSchema,
   BrowserOpsUnbindRuntimeSchema,
 } from '../services/browser-ops/schemas'
@@ -33,6 +48,8 @@ interface BrowserOpsRouteDeps {
   controller: ControllerBackend
   runtimePersistence?: BrowserOpsRuntimePersistence
   runtimeLauncher?: BrowserOpsRuntimeLauncher
+  runtimeInstanceRegistry?: BrowserOpsRuntimeInstanceRegistry
+  runtimeInstanceEventStore?: BrowserOpsRuntimeInstanceEventStore
 }
 
 function toCookieParam(cookie: Cookie): CookieParam {
@@ -60,6 +77,12 @@ export function createBrowserOpsRoutes(deps: BrowserOpsRouteDeps) {
     deps.runtimePersistence ?? new BrowserOpsRuntimePersistenceService()
   const runtimeLauncher =
     deps.runtimeLauncher ?? new BrowserOpsRuntimeLauncherService()
+  const runtimeInstanceRegistry =
+    deps.runtimeInstanceRegistry ??
+    new BrowserOpsRuntimeInstanceRegistryService()
+  const runtimeInstanceEventStore =
+    deps.runtimeInstanceEventStore ??
+    new BrowserOpsRuntimeInstanceEventStoreService()
 
   return new Hono()
     .get('/providers', async (c) => {
@@ -97,11 +120,223 @@ export function createBrowserOpsRoutes(deps: BrowserOpsRouteDeps) {
         executions: await runtimeLauncher.listExecutions(),
       })
     })
+    .get('/runtime/instances', async (c) => {
+      return c.json({
+        instances: await runtimeInstanceRegistry.listInstances(),
+      })
+    })
+    .get('/runtime/instance-events', async (c) => {
+      return c.json({
+        events: await runtimeInstanceEventStore.listEvents(),
+      })
+    })
+    .post(
+      '/runtime/instances/refresh',
+      zValidator('json', BrowserOpsRefreshInstanceSchema),
+      async (c) => {
+        const request = c.req.valid('json')
+        const instance = await runtimeInstanceRegistry.refreshInstanceHealth(
+          request.instanceId,
+        )
+
+        if (!instance) {
+          return c.json({ error: 'Managed instance not found' }, 404)
+        }
+
+        await runtimeInstanceEventStore.appendEvent({
+          eventId: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          scope: 'instance',
+          action: 'instance_refreshed',
+          message: `Refreshed instance ${instance.instanceId}`,
+          instanceId: instance.instanceId,
+          executionId: instance.executionId,
+          specId: instance.specId,
+          profileId: instance.profileId,
+        })
+        return c.json({ instance })
+      },
+    )
+    .post(
+      '/runtime/instances/refresh-all',
+      zValidator('json', BrowserOpsRefreshAllInstancesSchema),
+      async (c) => {
+        const refreshed =
+          await runtimeInstanceRegistry.refreshAllInstanceHealth()
+        await runtimeInstanceEventStore.appendEvent({
+          eventId: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          scope: 'system',
+          action: 'instances_refreshed',
+          message: `Refreshed ${refreshed.length} managed instances`,
+          metadata: { count: refreshed.length },
+        })
+        return c.json({ refreshed })
+      },
+    )
+    .get('/runtime/launch-diagnostics', async (c) => {
+      const specs = service.listRuntimeSessionSpecs()
+      const bundles = await runtimePersistence.listLaunchBundles()
+      return c.json({
+        diagnostics: await runtimeLauncher.getDiagnostics({
+          activeSpecIds: specs.map((spec) => spec.specId),
+          activeBundleIds: bundles.map((bundle) => bundle.bundleId),
+        }),
+      })
+    })
     .get('/runtime/cookie-vaults', async (c) => {
       return c.json({
         vaults: await runtimePersistence.listCookieVaults(),
       })
     })
+    .get('/runtime/instance-diagnostics', async (c) => {
+      const executions = await runtimeLauncher.listExecutions()
+      return c.json({
+        diagnostics: await runtimeInstanceRegistry.getDiagnostics({
+          executionIds: executions.map((execution) => execution.executionId),
+        }),
+      })
+    })
+    .post(
+      '/runtime/instances/reconcile',
+      zValidator('json', BrowserOpsReconcileInstancesSchema),
+      async (c) => {
+        const request = c.req.valid('json')
+        const executions = await runtimeLauncher.listExecutions()
+        const result = await runtimeInstanceRegistry.reconcileInstances({
+          executionIds: executions.map((execution) => execution.executionId),
+          stopOrphanInstances: request.stopOrphanInstances,
+          refreshHealth: request.refreshHealth,
+        })
+        await runtimeInstanceEventStore.appendEvent({
+          eventId: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          scope: 'system',
+          action: 'instances_reconciled',
+          message: `Reconciled instances; stopped=${result.stoppedInstanceIds.length} refreshed=${result.refreshedInstanceIds.length}`,
+          metadata: {
+            stopped: result.stoppedInstanceIds.length,
+            refreshed: result.refreshedInstanceIds.length,
+          },
+        })
+        return c.json(result)
+      },
+    )
+    .post(
+      '/runtime/instances/cleanup',
+      zValidator('json', BrowserOpsCleanupInstancesSchema),
+      async (c) => {
+        const request = c.req.valid('json')
+        const executions = await runtimeLauncher.listExecutions()
+        const removedInstanceIds =
+          await runtimeInstanceRegistry.cleanupInstances({
+            removeStopped: request.removeStopped,
+            removeFailed: request.removeFailed,
+            removeOrphan: request.removeOrphan,
+            executionIds: executions.map((execution) => execution.executionId),
+          })
+
+        await runtimeInstanceEventStore.appendEvent({
+          eventId: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          scope: 'system',
+          action: 'instance_cleaned',
+          message: `Cleaned up ${removedInstanceIds.length} managed instances`,
+          metadata: { count: removedInstanceIds.length },
+        })
+
+        return c.json({ removedInstanceIds })
+      },
+    )
+    .post(
+      '/runtime/instances/hard-cleanup',
+      zValidator('json', BrowserOpsHardCleanupInstanceSchema),
+      async (c) => {
+        const request = c.req.valid('json')
+        const instance = await runtimeInstanceRegistry.getInstance(
+          request.instanceId,
+        )
+
+        if (!instance) {
+          return c.json({ error: 'Managed instance not found' }, 404)
+        }
+
+        let execution = null
+        if (request.removeExecution) {
+          execution = await runtimeLauncher.cleanupExecution(
+            instance.executionId,
+          )
+        }
+
+        const removedInstance = await runtimeInstanceRegistry.cleanupInstance(
+          request.instanceId,
+        )
+
+        await runtimeInstanceEventStore.appendEvent({
+          eventId: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          scope: 'instance',
+          action: 'instance_cleaned',
+          message: `Hard cleaned instance ${request.instanceId}`,
+          instanceId: request.instanceId,
+        })
+
+        return c.json({ execution, instance: removedInstance })
+      },
+    )
+    .post(
+      '/runtime/instances/restart',
+      zValidator('json', BrowserOpsRestartInstanceSchema),
+      async (c) => {
+        const request = c.req.valid('json')
+        const instance = await runtimeInstanceRegistry.getInstance(
+          request.instanceId,
+        )
+
+        if (!instance) {
+          return c.json({ error: 'Managed instance not found' }, 404)
+        }
+
+        const bundle =
+          (await runtimePersistence.readLaunchBundle(instance.specId)) ??
+          (await runtimePersistence.materializeLaunchBundle(instance.specId))
+
+        if (!bundle) {
+          return c.json({ error: 'Launch bundle source not found' }, 404)
+        }
+
+        const previousExecution = await runtimeLauncher.stopExecution(
+          instance.executionId,
+        )
+        if (previousExecution) {
+          await runtimeInstanceRegistry.markExecutionState(previousExecution)
+        }
+
+        const execution = await runtimeLauncher.launchBundle(bundle, {
+          execute: request.execute,
+        })
+        const nextInstance = await runtimeInstanceRegistry.registerExecution(
+          bundle,
+          execution,
+        )
+        await runtimeInstanceEventStore.appendEvent({
+          eventId: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          scope: 'instance',
+          action: 'instance_restarted',
+          message: `Restarted instance ${nextInstance.instanceId}`,
+          instanceId: nextInstance.instanceId,
+          executionId: execution.executionId,
+          specId: execution.specId,
+          profileId: execution.profileId,
+        })
+
+        return c.json(
+          { previousExecution, execution, instance: nextInstance },
+          201,
+        )
+      },
+    )
     .get('/runtime/diagnostics', async (c) => {
       const browserWindows = (await browser.listWindows()).map((window) => ({
         windowId: window.windowId,
@@ -254,7 +489,35 @@ export function createBrowserOpsRoutes(deps: BrowserOpsRouteDeps) {
         const execution = await runtimeLauncher.launchBundle(bundle, {
           execute: request.execute,
         })
-        return c.json({ execution }, 201)
+        const instance = await runtimeInstanceRegistry.registerExecution(
+          bundle,
+          execution,
+        )
+        await runtimeInstanceEventStore.appendEvent({
+          eventId: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          scope: 'execution',
+          action: request.execute ? 'launch_started' : 'launch_prepared',
+          message: request.execute
+            ? `Started launch execution ${execution.executionId}`
+            : `Prepared launch execution ${execution.executionId}`,
+          instanceId: instance.instanceId,
+          executionId: execution.executionId,
+          specId: execution.specId,
+          profileId: execution.profileId,
+        })
+        await runtimeInstanceEventStore.appendEvent({
+          eventId: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          scope: 'instance',
+          action: 'instance_registered',
+          message: `Registered instance ${instance.instanceId}`,
+          instanceId: instance.instanceId,
+          executionId: execution.executionId,
+          specId: execution.specId,
+          profileId: execution.profileId,
+        })
+        return c.json({ execution, instance }, 201)
       },
     )
     .post(
@@ -269,8 +532,66 @@ export function createBrowserOpsRoutes(deps: BrowserOpsRouteDeps) {
         if (!execution) {
           return c.json({ error: 'Launch execution not found' }, 404)
         }
+        const instance =
+          await runtimeInstanceRegistry.markExecutionState(execution)
+        await runtimeInstanceEventStore.appendEvent({
+          eventId: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          scope: 'execution',
+          action: 'launch_stopped',
+          message: `Stopped launch execution ${execution.executionId}`,
+          instanceId: instance?.instanceId,
+          executionId: execution.executionId,
+          specId: execution.specId,
+          profileId: execution.profileId,
+        })
+        return c.json({ execution, instance })
+      },
+    )
+    .post(
+      '/runtime/launch/reconcile',
+      zValidator('json', BrowserOpsReconcileLaunchExecutionsSchema),
+      async (c) => {
+        const request = c.req.valid('json')
+        const specs = service.listRuntimeSessionSpecs()
+        const bundles = await runtimePersistence.listLaunchBundles()
+        const diagnostics = await runtimeLauncher.getDiagnostics({
+          activeSpecIds: specs.map((spec) => spec.specId),
+          activeBundleIds: bundles.map((bundle) => bundle.bundleId),
+        })
 
-        return c.json({ execution })
+        const stoppedExecutionIds: string[] = []
+        if (request.stopOrphanLaunchedExecutions) {
+          for (const executionId of diagnostics.orphanLaunchedExecutionIds) {
+            const execution = await runtimeLauncher.stopExecution(executionId)
+            if (execution) stoppedExecutionIds.push(execution.executionId)
+            if (execution) {
+              await runtimeInstanceRegistry.markExecutionState(execution)
+            }
+          }
+        }
+
+        await runtimeInstanceEventStore.appendEvent({
+          eventId: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          scope: 'system',
+          action: 'launches_reconciled',
+          message: `Reconciled launch executions; stopped=${stoppedExecutionIds.length}`,
+          metadata: { stopped: stoppedExecutionIds.length },
+        })
+
+        return c.json({
+          stoppedExecutionIds,
+          instanceDiagnostics: await runtimeInstanceRegistry.getDiagnostics({
+            executionIds: (await runtimeLauncher.listExecutions()).map(
+              (execution) => execution.executionId,
+            ),
+          }),
+          diagnostics: await runtimeLauncher.getDiagnostics({
+            activeSpecIds: specs.map((spec) => spec.specId),
+            activeBundleIds: bundles.map((bundle) => bundle.bundleId),
+          }),
+        })
       },
     )
     .post(
@@ -453,6 +774,13 @@ export function createBrowserOpsRoutes(deps: BrowserOpsRouteDeps) {
         if (currentSpec?.browserContextId) {
           await browser.disposeBrowserContext(currentSpec.browserContextId)
         }
+        if (currentSpec) {
+          const stoppedExecutions =
+            await runtimeLauncher.stopExecutionsForSpecs([currentSpec.specId])
+          for (const execution of stoppedExecutions) {
+            await runtimeInstanceRegistry.markExecutionState(execution)
+          }
+        }
         await runtimePersistence.markAssetsReleasedForBinding(binding.bindingId)
         return c.json({ binding })
       },
@@ -565,8 +893,21 @@ export function createBrowserOpsRoutes(deps: BrowserOpsRouteDeps) {
           return c.json({ error: 'Allocation not found' }, 404)
         }
 
+        const relatedSpecIds = relatedBindings
+          .map((binding) =>
+            binding.runtimeSpecId !== null ? binding.runtimeSpecId : null,
+          )
+          .filter((specId): specId is string => specId !== null)
+
         for (const browserContextId of browserContextIds) {
           await browser.disposeBrowserContext(browserContextId)
+        }
+        if (relatedSpecIds.length > 0) {
+          const stoppedExecutions =
+            await runtimeLauncher.stopExecutionsForSpecs(relatedSpecIds)
+          for (const execution of stoppedExecutions) {
+            await runtimeInstanceRegistry.markExecutionState(execution)
+          }
         }
         await runtimePersistence.markAssetsReleasedForAllocation(
           allocation.allocationId,

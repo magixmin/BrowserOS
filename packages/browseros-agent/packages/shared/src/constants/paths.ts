@@ -18,6 +18,8 @@ export const PATHS = {
   BROWSER_OPS_RUNTIME_ASSETS_DIR_NAME: 'runtime-assets',
   BROWSER_OPS_LAUNCH_BUNDLES_DIR_NAME: 'launch-bundles',
   BROWSER_OPS_LAUNCH_EXECUTIONS_DIR_NAME: 'launch-executions',
+  BROWSER_OPS_INSTANCES_DIR_NAME: 'instances',
+  BROWSER_OPS_INSTANCE_EVENTS_DIR_NAME: 'instance-events',
   TOOL_OUTPUT_DIR_NAME: 'tool-output',
   SOUL_FILE_NAME: 'SOUL.md',
   CORE_MEMORY_FILE_NAME: 'CORE.md',

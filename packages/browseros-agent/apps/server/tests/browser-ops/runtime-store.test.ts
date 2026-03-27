@@ -34,12 +34,14 @@ afterEach(async () => {
 })
 
 mock.module('../../src/lib/browseros-dir', () => ({
+  getBrowserOpsDir: () => rootDir,
   getBrowserOpsProfilesDir: () => profilesDir,
   getBrowserOpsCookieVaultsDir: () => cookieVaultsDir,
   getBrowserOpsRuntimeSpecsDir: () => specsDir,
   getBrowserOpsRuntimeAssetsDir: () => assetsDir,
   getBrowserOpsLaunchBundlesDir: () => launchBundlesDir,
   getBrowserOpsLaunchExecutionsDir: () => launchExecutionsDir,
+  getBrowserOpsInstancesDir: () => join(rootDir, 'instances'),
 }))
 
 const { BrowserOpsRuntimePersistenceService } = await import(

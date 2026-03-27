@@ -153,6 +153,11 @@
 - launch bundle：生成接近真实 Chromium 启动参数的配置包
 - local launcher service：支持 prepare / launch / stop 执行记录
 - launch execution persistence：本地落盘 launcher 执行历史
+- launch diagnostics/reconcile：检测并收敛 stale/orphan launch executions
+- instance registry：把 execution、端口、PID、健康状态绑定成实例记录
+- instance lifecycle controls：refresh / reconcile / restart / cleanup
+- instance operations panel：支持 refresh-all、restart、hard cleanup
+- instance control panel：支持 refresh-all、restart、hard cleanup、诊断
 
 验收标准：
 

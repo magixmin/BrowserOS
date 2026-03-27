@@ -44,6 +44,14 @@ export function getBrowserOpsLaunchExecutionsDir(): string {
   return join(getBrowserOpsDir(), PATHS.BROWSER_OPS_LAUNCH_EXECUTIONS_DIR_NAME)
 }
 
+export function getBrowserOpsInstancesDir(): string {
+  return join(getBrowserOpsDir(), PATHS.BROWSER_OPS_INSTANCES_DIR_NAME)
+}
+
+export function getBrowserOpsInstanceEventsDir(): string {
+  return join(getBrowserOpsDir(), PATHS.BROWSER_OPS_INSTANCE_EVENTS_DIR_NAME)
+}
+
 export function getSoulPath(): string {
   return join(getBrowserosDir(), PATHS.SOUL_FILE_NAME)
 }
@@ -71,6 +79,8 @@ export async function ensureBrowserosDir(): Promise<void> {
   await mkdir(getBrowserOpsRuntimeAssetsDir(), { recursive: true })
   await mkdir(getBrowserOpsLaunchBundlesDir(), { recursive: true })
   await mkdir(getBrowserOpsLaunchExecutionsDir(), { recursive: true })
+  await mkdir(getBrowserOpsInstancesDir(), { recursive: true })
+  await mkdir(getBrowserOpsInstanceEventsDir(), { recursive: true })
 }
 
 export async function cleanOldSessions(): Promise<void> {

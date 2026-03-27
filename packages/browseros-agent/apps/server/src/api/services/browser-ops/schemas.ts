@@ -128,3 +128,34 @@ export const BrowserOpsLaunchExecutionSchema = z.object({
 export const BrowserOpsStopLaunchExecutionSchema = z.object({
   executionId: z.string().uuid(),
 })
+
+export const BrowserOpsReconcileLaunchExecutionsSchema = z.object({
+  stopOrphanLaunchedExecutions: z.boolean().optional().default(true),
+})
+
+export const BrowserOpsRefreshInstanceSchema = z.object({
+  instanceId: z.string().min(1),
+})
+
+export const BrowserOpsRefreshAllInstancesSchema = z.object({})
+
+export const BrowserOpsReconcileInstancesSchema = z.object({
+  stopOrphanInstances: z.boolean().optional().default(true),
+  refreshHealth: z.boolean().optional().default(true),
+})
+
+export const BrowserOpsCleanupInstancesSchema = z.object({
+  removeStopped: z.boolean().optional().default(true),
+  removeFailed: z.boolean().optional().default(true),
+  removeOrphan: z.boolean().optional().default(true),
+})
+
+export const BrowserOpsRestartInstanceSchema = z.object({
+  instanceId: z.string().min(1),
+  execute: z.boolean().optional().default(true),
+})
+
+export const BrowserOpsHardCleanupInstanceSchema = z.object({
+  instanceId: z.string().min(1),
+  removeExecution: z.boolean().optional().default(true),
+})

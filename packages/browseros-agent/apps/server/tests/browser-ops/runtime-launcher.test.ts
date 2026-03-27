@@ -61,6 +61,10 @@ class MemoryLauncherPersistence
   ): Promise<void> {
     this.executions.set(execution.executionId, execution)
   }
+
+  async deleteLaunchExecution(executionId: string): Promise<void> {
+    this.executions.delete(executionId)
+  }
 }
 
 beforeEach(async () => {
@@ -85,6 +89,8 @@ describe('BrowserOpsRuntimeLauncherService', () => {
 
     assert.strictEqual(execution.state, 'prepared')
     assert.strictEqual(execution.dryRun, true)
+    assert.ok(execution.ports.cdp > 0)
+    assert.ok(execution.commandPreview.includes('--remote-debugging-port='))
 
     const persisted = await persistence.listLaunchExecutions()
     assert.strictEqual(persisted.length, 1)
@@ -101,6 +107,7 @@ describe('BrowserOpsRuntimeLauncherService', () => {
 
     assert.strictEqual(execution.state, 'failed')
     assert.strictEqual(execution.pid, null)
+    assert.ok(execution.ports.server > 0)
   })
 
   it('launches and stops a process when binary is configured', async () => {
@@ -125,6 +132,7 @@ describe('BrowserOpsRuntimeLauncherService', () => {
 
     assert.strictEqual(execution.state, 'launched')
     assert.ok(execution.pid)
+    assert.ok(execution.ports.extension > 0)
 
     const stopped = await service.stopExecution(execution.executionId)
     assert.strictEqual(stopped?.state, 'stopped')
