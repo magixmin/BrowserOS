@@ -56,7 +56,12 @@ describe('BrowserOpsRuntimeInstanceStore', () => {
         cdpReachable: true,
         serverReachable: true,
         extensionReachable: true,
+        proxyAuthBootstrapConfigured: false,
+        proxyEgressVerified: false,
+        proxySessionConsistent: true,
       },
+      proxy: null,
+      lastProxyVerification: null,
       notes: [],
     })
 

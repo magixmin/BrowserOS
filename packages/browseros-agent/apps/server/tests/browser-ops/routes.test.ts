@@ -16,10 +16,22 @@ const SERVER_SRC_DIR = resolve(dirname(import.meta.path), '../../src')
 
 mock.module('../../src/lib/browseros-dir', () => {
   const browserosDir = resolve(SERVER_SRC_DIR, '..')
+  const browserOpsDir = resolve(browserosDir, 'browser-ops')
   return {
     getBrowserosDir: () => browserosDir,
     getSkillsDir: () => resolve(browserosDir, 'skills'),
     getBuiltinSkillsDir: () => resolve(SERVER_SRC_DIR, 'skills/defaults'),
+    getBrowserOpsDir: () => browserOpsDir,
+    getBrowserOpsProfilesDir: () => resolve(browserOpsDir, 'profiles'),
+    getBrowserOpsCookieVaultsDir: () => resolve(browserOpsDir, 'cookie-vaults'),
+    getBrowserOpsRuntimeSpecsDir: () => resolve(browserOpsDir, 'runtime-specs'),
+    getBrowserOpsRuntimeAssetsDir: () => resolve(browserOpsDir, 'runtime-assets'),
+    getBrowserOpsLaunchBundlesDir: () => resolve(browserOpsDir, 'launch-bundles'),
+    getBrowserOpsLaunchExecutionsDir: () =>
+      resolve(browserOpsDir, 'launch-executions'),
+    getBrowserOpsInstancesDir: () => resolve(browserOpsDir, 'instances'),
+    getBrowserOpsInstanceEventsDir: () =>
+      resolve(browserOpsDir, 'instance-events'),
   }
 })
 
@@ -98,6 +110,10 @@ function createRouteApp() {
   const controllerMessages: Array<{
     action: string
     payload?: Record<string, unknown>
+  }> = []
+  const proxyVerifications: Array<{
+    instanceId: string
+    detectedIp: string | null
   }> = []
   const assets = new Map<string, BrowserOpsRuntimeAssetManifest>()
   const bundles = new Map<string, BrowserOpsLaunchBundle>()
@@ -606,7 +622,20 @@ function createRouteApp() {
             cdpReachable: execution.state === 'launched',
             serverReachable: execution.state === 'launched',
             extensionReachable: execution.state === 'launched',
+            proxyAuthBootstrapConfigured: false,
+            proxyEgressVerified: false,
+            proxySessionConsistent: true,
           },
+          proxy: bundle.proxy
+            ? {
+                providerName: bundle.proxy.providerName,
+                authMode: bundle.proxy.authMode,
+                credentialSource: bundle.proxy.credentialSource,
+                serverArg: bundle.proxy.serverArg,
+                sessionId: bundle.proxy.sessionId,
+              }
+            : null,
+          lastProxyVerification: null,
           notes: [],
         }
         instances.set(instance.instanceId, instance)
@@ -740,6 +769,54 @@ function createRouteApp() {
         instances.delete(instanceId)
         return existing
       },
+      async recordProxyVerification(instanceId, verification) {
+        const existing = instances.get(instanceId)
+        if (!existing) return null
+        const next = {
+          ...existing,
+          health: {
+            ...existing.health,
+            proxyEgressVerified: verification.status === 'verified',
+          },
+          lastProxyVerification: verification,
+          notes: [
+            ...existing.notes,
+            `Proxy verification ${verification.status} at ${verification.checkedAt}.`,
+          ],
+        } satisfies BrowserOpsManagedInstance
+        instances.set(instanceId, next)
+        return next
+      },
+    },
+    runtimeInstanceVerifier: {
+      async verifyProxy(instance) {
+        const verification = {
+          instanceId: instance.instanceId,
+          checkedAt: new Date().toISOString(),
+          targetUrl: 'https://ifconfig.co/json',
+          status: 'verified' as const,
+          verdict: 'verified' as const,
+          observedText: '{"ip":"203.0.113.10","country":"US"}',
+          detectedIp: '203.0.113.10',
+          detectedCountry: 'US',
+          sessionVerdict: 'consistent' as const,
+          expectedProxy: instance.proxy
+            ? {
+                providerName: instance.proxy.providerName,
+                serverArg: instance.proxy.serverArg,
+                sessionId: instance.proxy.sessionId,
+                country: instance.proxy.country,
+              }
+            : null,
+          bootstrapConfigured: instance.health.proxyAuthBootstrapConfigured,
+          notes: ['Observed public egress IP from launched managed instance.'],
+        }
+        proxyVerifications.push({
+          instanceId: verification.instanceId,
+          detectedIp: verification.detectedIp,
+        })
+        return verification
+      },
     },
     runtimeInstanceEventStore: {
       async listEvents() {
@@ -759,6 +836,7 @@ function createRouteApp() {
       controllerMessages,
       liveBrowserContexts,
       disposedBrowserContexts,
+      proxyVerifications,
     },
   })
 }
@@ -1345,6 +1423,76 @@ describe('Browser Ops routes', () => {
       events: { action: string }[]
     }
     assert.ok(eventsJson.events.length >= 2)
+  })
+
+  it('verifies proxy egress for a managed instance', async () => {
+    const app = createRouteApp()
+    const payload = createPreviewPayload()
+
+    const allocateResponse = await app.request('/allocate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const allocateJson = (await allocateResponse.json()) as {
+      allocation: { allocationId: string }
+    }
+
+    await app.request('/runtime/open-managed-window', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        allocationId: allocateJson.allocation.allocationId,
+        url: 'https://sellercentral.amazon.com',
+        hidden: false,
+        restoreCookieVault: false,
+      }),
+    })
+
+    const bundlesResponse = await app.request('/runtime/launch-bundles')
+    const bundlesJson = (await bundlesResponse.json()) as {
+      bundles: { specId: string }[]
+    }
+    const specId = bundlesJson.bundles[0]?.specId
+    assert.ok(specId)
+
+    await app.request('/runtime/launch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        specId,
+        execute: true,
+      }),
+    })
+
+    const instancesResponse = await app.request('/runtime/instances')
+    const instancesJson = (await instancesResponse.json()) as {
+      instances: { instanceId: string }[]
+    }
+    const instanceId = instancesJson.instances[0]?.instanceId
+    assert.ok(instanceId)
+
+    const verifyResponse = await app.request('/runtime/instances/verify-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instanceId }),
+    })
+
+    assert.strictEqual(verifyResponse.status, 200)
+    const verifyJson = (await verifyResponse.json()) as {
+      verification: {
+        status: string
+        verdict: string
+        detectedIp: string | null
+        detectedCountry: string | null
+        sessionVerdict: string
+      }
+    }
+    assert.strictEqual(verifyJson.verification.status, 'verified')
+    assert.strictEqual(verifyJson.verification.verdict, 'verified')
+    assert.strictEqual(verifyJson.verification.detectedIp, '203.0.113.10')
+    assert.strictEqual(verifyJson.verification.detectedCountry, 'US')
+    assert.strictEqual(verifyJson.verification.sessionVerdict, 'consistent')
   })
 
   it('returns runtime diagnostics', async () => {

@@ -28,6 +28,7 @@ export {
   type BrowserOpsProviderRouteResolution,
   type BrowserOpsProxy,
   type BrowserOpsProxyHealthAssessment,
+  type BrowserOpsProxyVerification,
   type BrowserOpsRouteAllocation,
   type BrowserOpsRouteDecision,
   type BrowserOpsSkillResolution,

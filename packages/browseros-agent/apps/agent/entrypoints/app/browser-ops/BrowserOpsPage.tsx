@@ -47,6 +47,7 @@ import {
   type BrowserOpsManagedInstance,
   type BrowserOpsPreviewResult,
   type BrowserOpsProviderCatalogEntry,
+  type BrowserOpsProxyVerification,
   type BrowserOpsRouteAllocation,
   type BrowserOpsAutomationBrief,
   type BrowserOpsRuntimeAssetManifest,
@@ -162,6 +163,9 @@ export const BrowserOpsPage: FC = () => {
   const [instanceEvents, setInstanceEvents] = useState<BrowserOpsInstanceEvent[]>(
     [],
   )
+  const [instanceProxyChecks, setInstanceProxyChecks] = useState<
+    Record<string, BrowserOpsProxyVerification>
+  >({})
   const [windowOwnership, setWindowOwnership] = useState<
     BrowserOpsControllerWindowOwnership[]
   >([])
@@ -1558,6 +1562,44 @@ export const BrowserOpsPage: FC = () => {
           : 'Failed to hard cleanup instance',
       )
       toast.error('Failed to hard cleanup instance')
+    } finally {
+      setBindingPending(false)
+    }
+  }
+
+  const verifyInstanceProxy = async (instanceId: string) => {
+    setBindingPending(true)
+    setBindingError(null)
+
+    try {
+      const response = await rpcClient['browser-ops'].runtime.instances[
+        'verify-proxy'
+      ].$post({
+        json: { instanceId },
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+      const result = (await response.json()) as {
+        verification: BrowserOpsProxyVerification
+      }
+      setInstanceProxyChecks((current) => ({
+        ...current,
+        [instanceId]: result.verification,
+      }))
+      await refreshManagedInstances()
+      await refreshInstanceEvents()
+      toast.success(
+        result.verification.detectedIp
+          ? `Verified proxy IP ${result.verification.detectedIp}`
+          : 'Proxy verification completed',
+      )
+    } catch (error) {
+      setBindingError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to verify instance proxy',
+      )
+      toast.error('Failed to verify instance proxy')
     } finally {
       setBindingPending(false)
     }
@@ -3247,7 +3289,7 @@ export const BrowserOpsPage: FC = () => {
                     />
                     <MiniInfo
                       label="Health"
-                      value={`${instance.health.cdpReachable ? 'cdp' : '-'} / ${instance.health.serverReachable ? 'server' : '-'} / ${instance.health.extensionReachable ? 'ext' : '-'}`}
+                      value={`${instance.health.cdpReachable ? 'cdp' : '-'} / ${instance.health.serverReachable ? 'server' : '-'} / ${instance.health.extensionReachable ? 'ext' : '-'} / ${instance.health.proxyAuthBootstrapConfigured ? 'proxy-auth' : '-'} / ${instance.health.proxyEgressVerified ? 'egress' : '-'} / ${instance.health.proxySessionConsistent ? 'session' : 'session-drift'}`}
                     />
                     <MiniInfo
                       label="Checked"
@@ -3258,6 +3300,114 @@ export const BrowserOpsPage: FC = () => {
                             ).toLocaleString()
                           : 'never'
                       }
+                    />
+                  </div>
+
+                  {(instanceProxyChecks[instance.instanceId] ??
+                    instance.lastProxyVerification) ? (
+                    <div className="grid gap-3 md:grid-cols-4">
+                      <MiniInfo
+                        label="Proxy Verify"
+                        value={
+                          (
+                            instanceProxyChecks[instance.instanceId] ??
+                            instance.lastProxyVerification
+                          )?.verdict
+                        }
+                      />
+                      <MiniInfo
+                        label="Detected IP"
+                        value={
+                          (
+                            instanceProxyChecks[instance.instanceId] ??
+                            instance.lastProxyVerification
+                          )?.detectedIp ?? 'n/a'
+                        }
+                      />
+                      <MiniInfo
+                        label="Detected Country"
+                        value={
+                          (
+                            instanceProxyChecks[instance.instanceId] ??
+                            instance.lastProxyVerification
+                          )?.detectedCountry ?? 'n/a'
+                        }
+                      />
+                      <MiniInfo
+                        label="Session Verdict"
+                        value={
+                          (
+                            instanceProxyChecks[instance.instanceId] ??
+                            instance.lastProxyVerification
+                          )?.sessionVerdict
+                        }
+                      />
+                      <MiniInfo
+                        label="Verified At"
+                        value={new Date(
+                          (
+                            instanceProxyChecks[instance.instanceId] ??
+                            instance.lastProxyVerification
+                          )?.checkedAt ?? '',
+                        ).toLocaleString()}
+                      />
+                    </div>
+                  ) : null}
+
+                  {(instanceProxyChecks[instance.instanceId] ??
+                    instance.lastProxyVerification)?.expectedProxy ? (
+                    <div className="grid gap-3 md:grid-cols-4">
+                      <MiniInfo
+                        label="Expected Provider"
+                        value={
+                          (
+                            instanceProxyChecks[instance.instanceId] ??
+                            instance.lastProxyVerification
+                          )?.expectedProxy?.providerName ?? 'n/a'
+                        }
+                      />
+                      <MiniInfo
+                        label="Expected Server"
+                        value={
+                          (
+                            instanceProxyChecks[instance.instanceId] ??
+                            instance.lastProxyVerification
+                          )?.expectedProxy?.serverArg ?? 'n/a'
+                        }
+                      />
+                      <MiniInfo
+                        label="Expected Session"
+                        value={
+                          (
+                            instanceProxyChecks[instance.instanceId] ??
+                            instance.lastProxyVerification
+                          )?.expectedProxy?.sessionId ?? 'rotate'
+                        }
+                      />
+                      <MiniInfo
+                        label="Expected Country"
+                        value={
+                          (
+                            instanceProxyChecks[instance.instanceId] ??
+                            instance.lastProxyVerification
+                          )?.expectedProxy?.country ?? 'n/a'
+                        }
+                      />
+                    </div>
+                  ) : null}
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <MiniInfo
+                      label="Proxy Provider"
+                      value={instance.proxy?.providerName ?? 'n/a'}
+                    />
+                    <MiniInfo
+                      label="Proxy Mode"
+                      value={instance.proxy?.authMode ?? 'n/a'}
+                    />
+                    <MiniInfo
+                      label="Proxy Session"
+                      value={instance.proxy?.sessionId ?? 'rotate'}
                     />
                   </div>
 
@@ -3277,6 +3427,14 @@ export const BrowserOpsPage: FC = () => {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={bindingPending}
+                      onClick={() => verifyInstanceProxy(instance.instanceId)}
+                    >
+                      Verify Proxy
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"

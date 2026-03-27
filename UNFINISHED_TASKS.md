@@ -8,7 +8,7 @@ This file is the current task board for work that is not fully closed yet. Sourc
 
 - [ ] Real proxy provider credentials and live route dialing
   Source: `docs/project-plans/ai-browser-os-browser-ops.md`
-  Status: data model and adapter skeleton exist; recent rounds added safe `proxyServerArg`, credential source/env hints, preview-time missing-env warnings, launcher-side missing-credential detection, resolved credential injection into launched BrowserOS process env, and controller-side proxy auth rule injection for bound tabs, but full end-to-end provider dialing across managed instances is still not wired.
+  Status: data model and adapter skeleton exist; recent rounds added safe `proxyServerArg`, credential source/env hints, preview-time missing-env warnings, launcher-side missing-credential detection, resolved credential injection into launched BrowserOS process env, controller-side proxy auth rule injection for bound tabs, launched-instance server bootstrap for proxy auth rules, status/instance health visibility for proxy-auth bootstrap, and instance-level proxy egress verification with persisted IP/country/session verdicts and health integration, but full end-to-end provider dialing across managed instances is still not wired.
 
 - [ ] Chromium profile / session isolation
   Source: `docs/project-plans/ai-browser-os-browser-ops.md`

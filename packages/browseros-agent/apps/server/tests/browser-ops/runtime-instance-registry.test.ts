@@ -39,6 +39,7 @@ class FixedProbe {
       cdpReachable: boolean
       serverReachable: boolean
       extensionReachable: boolean
+      proxyAuthBootstrapConfigured: boolean
     },
   ) {}
 
@@ -103,6 +104,7 @@ describe('BrowserOpsRuntimeInstanceRegistryService', () => {
         cdpReachable: true,
         serverReachable: true,
         extensionReachable: true,
+        proxyAuthBootstrapConfigured: true,
       }),
     )
 
@@ -115,6 +117,9 @@ describe('BrowserOpsRuntimeInstanceRegistryService', () => {
     const refreshed = await service.refreshInstanceHealth(instance.instanceId)
     assert.strictEqual(refreshed?.state, 'running')
     assert.strictEqual(refreshed?.health.serverReachable, true)
+    assert.strictEqual(refreshed?.health.proxyAuthBootstrapConfigured, true)
+    assert.strictEqual(refreshed?.health.proxyEgressVerified, false)
+    assert.strictEqual(refreshed?.health.proxySessionConsistent, true)
   })
 
   it('computes instance diagnostics', async () => {
@@ -125,6 +130,7 @@ describe('BrowserOpsRuntimeInstanceRegistryService', () => {
         cdpReachable: false,
         serverReachable: false,
         extensionReachable: false,
+        proxyAuthBootstrapConfigured: false,
       }),
     )
 
@@ -150,6 +156,7 @@ describe('BrowserOpsRuntimeInstanceRegistryService', () => {
         cdpReachable: false,
         serverReachable: false,
         extensionReachable: false,
+        proxyAuthBootstrapConfigured: false,
       }),
     )
 
@@ -179,6 +186,7 @@ describe('BrowserOpsRuntimeInstanceRegistryService', () => {
         cdpReachable: true,
         serverReachable: true,
         extensionReachable: true,
+        proxyAuthBootstrapConfigured: false,
       }),
     )
 
@@ -199,5 +207,46 @@ describe('BrowserOpsRuntimeInstanceRegistryService', () => {
     })
     assert.strictEqual(removed.length, 1)
     assert.strictEqual(await service.getInstance(instance.instanceId), null)
+  })
+
+  it('records proxy verification results on the instance', async () => {
+    const persistence = new MemoryInstancePersistence()
+    const service = new BrowserOpsRuntimeInstanceRegistryService(
+      persistence,
+      new FixedProbe({
+        cdpReachable: true,
+        serverReachable: true,
+        extensionReachable: true,
+        proxyAuthBootstrapConfigured: true,
+      }),
+    )
+
+    const instance = await service.registerExecution(
+      createBundle(),
+      createExecution(),
+    )
+
+    const updated = await service.recordProxyVerification(instance.instanceId, {
+      instanceId: instance.instanceId,
+      checkedAt: new Date().toISOString(),
+      targetUrl: 'https://ifconfig.co/json',
+      status: 'verified',
+      verdict: 'verified',
+      observedText: '{"ip":"203.0.113.10","country":"US"}',
+      detectedIp: '203.0.113.10',
+      detectedCountry: 'US',
+      sessionVerdict: 'consistent',
+      expectedProxy: null,
+      bootstrapConfigured: true,
+      notes: ['Observed public egress IP from launched managed instance.'],
+    })
+
+    assert.strictEqual(updated?.lastProxyVerification?.status, 'verified')
+    assert.strictEqual(
+      updated?.lastProxyVerification?.detectedIp,
+      '203.0.113.10',
+    )
+    assert.strictEqual(updated?.health.proxyEgressVerified, true)
+    assert.strictEqual(updated?.health.proxySessionConsistent, true)
   })
 })

@@ -259,6 +259,7 @@ export class BrowserOpsRuntimePersistenceService
             providerName: spec.proxyResolution.providerName,
             maskedUrl: spec.proxyResolution.proxyUrlMasked,
             serverArg: spec.proxyResolution.proxyServerArg,
+            country: spec.proxyResolution.country,
             authMode: spec.proxyResolution.authMode,
             credentialSource: spec.proxyResolution.credentialSource,
             credentialEnv: spec.proxyResolution.credentialEnv,

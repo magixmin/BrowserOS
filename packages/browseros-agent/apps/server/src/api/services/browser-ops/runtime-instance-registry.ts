@@ -4,6 +4,7 @@ import type {
   BrowserOpsLaunchBundle,
   BrowserOpsLaunchExecution,
   BrowserOpsManagedInstance,
+  BrowserOpsProxyVerification,
 } from '@browseros/shared/browser-ops'
 import {
   type BrowserOpsRuntimeInstancePersistence,
@@ -19,6 +20,7 @@ interface BrowserOpsInstanceProbe {
     cdpReachable: boolean
     serverReachable: boolean
     extensionReachable: boolean
+    proxyAuthBootstrapConfigured: boolean
   }>
 }
 
@@ -63,18 +65,43 @@ class DefaultInstanceProbe implements BrowserOpsInstanceProbe {
     cdpReachable: boolean
     serverReachable: boolean
     extensionReachable: boolean
+    proxyAuthBootstrapConfigured: boolean
   }> {
-    const [cdpReachable, serverReachable, extensionReachable] =
+    const [cdpReachable, serverHealth, extensionReachable] =
       await Promise.all([
         this.probeHttp(`http://127.0.0.1:${ports.cdp}/json/version`),
-        this.probeHttp(`http://127.0.0.1:${ports.server}/health`),
+        fetch(`http://127.0.0.1:${ports.server}/status`, {
+          signal: AbortSignal.timeout(1000),
+        })
+          .then(async (response) => {
+            if (!response.ok) {
+              return {
+                serverReachable: false,
+                proxyAuthBootstrapConfigured: false,
+              }
+            }
+            const json = (await response.json()) as {
+              status?: string
+              proxyAuthBootstrapConfigured?: boolean
+            }
+            return {
+              serverReachable: json.status === 'ok',
+              proxyAuthBootstrapConfigured:
+                json.proxyAuthBootstrapConfigured === true,
+            }
+          })
+          .catch(() => ({
+            serverReachable: false,
+            proxyAuthBootstrapConfigured: false,
+          })),
         this.probeTcp(ports.extension),
       ])
 
     return {
       cdpReachable,
-      serverReachable,
+      serverReachable: serverHealth.serverReachable,
       extensionReachable,
+      proxyAuthBootstrapConfigured: serverHealth.proxyAuthBootstrapConfigured,
     }
   }
 }
@@ -116,6 +143,10 @@ export interface BrowserOpsRuntimeInstanceRegistry {
     executionIds?: string[]
   }): Promise<string[]>
   cleanupInstance(instanceId: string): Promise<BrowserOpsManagedInstance | null>
+  recordProxyVerification(
+    instanceId: string,
+    verification: BrowserOpsProxyVerification,
+  ): Promise<BrowserOpsManagedInstance | null>
 }
 
 export class BrowserOpsRuntimeInstanceRegistryService
@@ -174,7 +205,21 @@ export class BrowserOpsRuntimeInstanceRegistryService
         cdpReachable: false,
         serverReachable: false,
         extensionReachable: false,
+        proxyAuthBootstrapConfigured: false,
+        proxyEgressVerified: false,
+        proxySessionConsistent: true,
       },
+      proxy: bundle.proxy
+        ? {
+            providerName: bundle.proxy.providerName,
+            country: bundle.proxy.country,
+            authMode: bundle.proxy.authMode,
+            credentialSource: bundle.proxy.credentialSource,
+            serverArg: bundle.proxy.serverArg,
+            sessionId: bundle.proxy.sessionId,
+          }
+        : null,
+      lastProxyVerification: existing?.lastProxyVerification ?? null,
       notes: [
         ...(existing?.notes ?? []),
         `Execution ${execution.executionId} registered for bundle ${bundle.bundleId}.`,
@@ -224,7 +269,11 @@ export class BrowserOpsRuntimeInstanceRegistryService
     const updated: BrowserOpsManagedInstance = {
       ...instance,
       lastHealthCheckAt: new Date().toISOString(),
-      health,
+      health: {
+        ...health,
+        proxyEgressVerified: instance.health.proxyEgressVerified,
+        proxySessionConsistent: instance.health.proxySessionConsistent,
+      },
       state:
         instance.state === 'failed' || instance.state === 'stopped'
           ? instance.state
@@ -396,5 +445,29 @@ export class BrowserOpsRuntimeInstanceRegistryService
     if (!instance) return null
     await this.persistence.deleteInstance(instanceId)
     return instance
+  }
+
+  async recordProxyVerification(
+    instanceId: string,
+    verification: BrowserOpsProxyVerification,
+  ): Promise<BrowserOpsManagedInstance | null> {
+    const instance = await this.persistence.readInstance(instanceId)
+    if (!instance) return null
+
+    const updated: BrowserOpsManagedInstance = {
+      ...instance,
+      health: {
+        ...instance.health,
+        proxyEgressVerified: verification.verdict === 'verified',
+        proxySessionConsistent: verification.sessionVerdict !== 'changed',
+      },
+      lastProxyVerification: verification,
+      notes: [
+        ...instance.notes,
+        `Proxy verification ${verification.status} at ${verification.checkedAt}.`,
+      ],
+    }
+    await this.persistence.writeInstance(updated)
+    return updated
   }
 }

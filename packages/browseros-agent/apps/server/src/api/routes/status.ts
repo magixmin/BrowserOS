@@ -18,6 +18,8 @@ export function createStatusRoute(deps: StatusDeps) {
     c.json({
       status: 'ok',
       extensionConnected: controller.isConnected(),
+      proxyAuthBootstrapConfigured: controller.getBootstrapProxyAuthRuleCount() > 0,
+      proxyAuthBootstrapRuleCount: controller.getBootstrapProxyAuthRuleCount(),
     }),
   )
 }

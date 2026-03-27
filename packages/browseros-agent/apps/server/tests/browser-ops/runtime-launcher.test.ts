@@ -48,6 +48,7 @@ function createBundleWithEnvProxy(): BrowserOpsLaunchBundle {
       providerName: 'Decodo',
       maskedUrl: 'gate.decodo.com:10000',
       serverArg: 'gate.decodo.com:10000',
+      country: 'US',
       authMode: 'provider-template',
       credentialSource: 'env',
       credentialEnv: {

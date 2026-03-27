@@ -28,6 +28,7 @@ import { fetchDailyRateLimit } from './lib/rate-limiter/fetch-config'
 import { RateLimiter } from './lib/rate-limiter/rate-limiter'
 import { Sentry } from './lib/sentry'
 import { seedSoulTemplate } from './lib/soul'
+import { resolveBootstrapProxyAuthRuleFromEnv } from './api/services/browser-ops/proxy-bootstrap'
 import { migrateBuiltinSkills } from './skills/migrate'
 import {
   startSkillSync,
@@ -59,6 +60,10 @@ export class Application {
     const controller = new ControllerBackend({
       port: this.config.extensionPort,
     })
+    const bootstrapProxyRule = resolveBootstrapProxyAuthRuleFromEnv()
+    if (bootstrapProxyRule) {
+      controller.registerBootstrapProxyAuthRule(bootstrapProxyRule)
+    }
     let controllerServerStarted = false
     try {
       logger.debug(

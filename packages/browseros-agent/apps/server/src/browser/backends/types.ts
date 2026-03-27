@@ -17,6 +17,16 @@ export interface ControllerBackend {
   stop(): Promise<void>
   isConnected(): boolean
   send(action: string, payload?: Record<string, unknown>): Promise<unknown>
+  registerBootstrapProxyAuthRule(rule: {
+    ruleId: string
+    host: string
+    port: number | null
+    username: string
+    password: string
+    tabId?: number
+  }): void
+  clearBootstrapProxyAuthRule(ruleId: string): void
+  getBootstrapProxyAuthRuleCount(): number
   getWindowOwnerClientId(windowId: number): string | null
   listOwnedWindows(): Array<{
     clientId: string

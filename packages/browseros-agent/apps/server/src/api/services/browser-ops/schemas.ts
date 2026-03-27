@@ -167,3 +167,8 @@ export const BrowserOpsHardCleanupInstanceSchema = z.object({
   instanceId: z.string().min(1),
   removeExecution: z.boolean().optional().default(true),
 })
+
+export const BrowserOpsVerifyInstanceProxySchema = z.object({
+  instanceId: z.string().min(1),
+  url: z.string().url().optional().default('https://api.ipify.org'),
+})

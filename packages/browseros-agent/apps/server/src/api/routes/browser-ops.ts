@@ -21,6 +21,10 @@ import {
   BrowserOpsRuntimeInstanceRegistryService,
 } from '../services/browser-ops/runtime-instance-registry'
 import {
+  type BrowserOpsRuntimeInstanceVerifier,
+  BrowserOpsRuntimeInstanceVerifierService,
+} from '../services/browser-ops/runtime-instance-verifier'
+import {
   type BrowserOpsRuntimeLauncher,
   BrowserOpsRuntimeLauncherService,
 } from '../services/browser-ops/runtime-launcher'
@@ -49,6 +53,7 @@ import {
   BrowserOpsReleaseAllocationSchema,
   BrowserOpsRestartInstanceSchema,
   BrowserOpsStopLaunchExecutionSchema,
+  BrowserOpsVerifyInstanceProxySchema,
   BrowserOpsTaskTemplateSchema,
   BrowserOpsUnbindRuntimeSchema,
 } from '../services/browser-ops/schemas'
@@ -61,6 +66,7 @@ interface BrowserOpsRouteDeps {
   runtimePersistence?: BrowserOpsRuntimePersistence
   runtimeLauncher?: BrowserOpsRuntimeLauncher
   runtimeInstanceRegistry?: BrowserOpsRuntimeInstanceRegistry
+  runtimeInstanceVerifier?: BrowserOpsRuntimeInstanceVerifier
   runtimeInstanceEventStore?: BrowserOpsRuntimeInstanceEventStore
 }
 
@@ -92,6 +98,9 @@ export function createBrowserOpsRoutes(deps: BrowserOpsRouteDeps) {
   const runtimeInstanceRegistry =
     deps.runtimeInstanceRegistry ??
     new BrowserOpsRuntimeInstanceRegistryService()
+  const runtimeInstanceVerifier =
+    deps.runtimeInstanceVerifier ??
+    new BrowserOpsRuntimeInstanceVerifierService()
   const runtimeInstanceEventStore =
     deps.runtimeInstanceEventStore ??
     new BrowserOpsRuntimeInstanceEventStoreService()
@@ -374,6 +383,48 @@ export function createBrowserOpsRoutes(deps: BrowserOpsRouteDeps) {
         events: await runtimeInstanceEventStore.listEvents(),
       })
     })
+    .post(
+      '/runtime/instances/verify-proxy',
+      zValidator('json', BrowserOpsVerifyInstanceProxySchema),
+      async (c) => {
+        const request = c.req.valid('json')
+        const instance = await runtimeInstanceRegistry.getInstance(
+          request.instanceId,
+        )
+
+        if (!instance) {
+          return c.json({ error: 'Managed instance not found' }, 404)
+        }
+
+        const verification = await runtimeInstanceVerifier.verifyProxy(instance, {
+          url: request.url,
+          previousVerification: instance.lastProxyVerification,
+        })
+        const updatedInstance =
+          await runtimeInstanceRegistry.recordProxyVerification(
+            instance.instanceId,
+            verification,
+          )
+
+        await runtimeInstanceEventStore.appendEvent({
+          eventId: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          scope: 'instance',
+          action: 'instance_refreshed',
+          message: `Verified proxy for instance ${instance.instanceId}: ${verification.status}`,
+          instanceId: instance.instanceId,
+          executionId: instance.executionId,
+          specId: instance.specId,
+          profileId: instance.profileId,
+          metadata: {
+            verificationStatus: verification.status,
+            detectedIp: verification.detectedIp ?? 'n/a',
+          },
+        })
+
+        return c.json({ verification, instance: updatedInstance })
+      },
+    )
     .post(
       '/runtime/instances/refresh',
       zValidator('json', BrowserOpsRefreshInstanceSchema),

@@ -19,6 +19,7 @@ export class ControllerBackend implements IControllerBackend {
   private focusedWindowId: number | null = null
   private requestCounter = 0
   private pendingRequests = new Map<string, PendingRequest>()
+  private bootstrapProxyAuthRules = new Map<string, Record<string, unknown>>()
 
   constructor(config: { port: number }) {
     this.port = config.port
@@ -87,6 +88,10 @@ export class ControllerBackend implements IControllerBackend {
         ws.on('error', (error: Error) => {
           logger.error(`WebSocket error for ${clientId}: ${error.message}`)
         })
+
+        if (this.primaryClientId === clientId) {
+          this.replayBootstrapProxyAuthRules()
+        }
       })
 
       this.wss.on('error', (error: Error) => {
@@ -167,6 +172,47 @@ export class ControllerBackend implements IControllerBackend {
         reject(error)
       }
     })
+  }
+
+  registerBootstrapProxyAuthRule(rule: {
+    ruleId: string
+    host: string
+    port: number | null
+    username: string
+    password: string
+    tabId?: number
+  }): void {
+    this.bootstrapProxyAuthRules.set(
+      rule.ruleId,
+      rule as Record<string, unknown>,
+    )
+    if (this.isConnected()) {
+      void this.send(
+        'setProxyAuthRule',
+        rule as unknown as Record<string, unknown>,
+      ).catch((error) => {
+        logger.warn('Failed to replay bootstrap proxy auth rule', {
+          ruleId: rule.ruleId,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      })
+    }
+  }
+
+  clearBootstrapProxyAuthRule(ruleId: string): void {
+    this.bootstrapProxyAuthRules.delete(ruleId)
+    if (this.isConnected()) {
+      void this.send('clearProxyAuthRule', { ruleId }).catch((error) => {
+        logger.warn('Failed to clear bootstrap proxy auth rule', {
+          ruleId,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      })
+    }
+  }
+
+  getBootstrapProxyAuthRuleCount(): number {
+    return this.bootstrapProxyAuthRules.size
   }
 
   getWindowOwnerClientId(windowId: number): string | null {
@@ -284,6 +330,7 @@ export class ControllerBackend implements IControllerBackend {
     logger.info('Promoted controller to primary', {
       clientId: this.primaryClientId,
     })
+    this.replayBootstrapProxyAuthRules()
   }
 
   private handleFocusEvent(clientId: string, windowId?: number): void {
@@ -308,6 +355,22 @@ export class ControllerBackend implements IControllerBackend {
       previousPrimary,
       windowId,
     })
+    this.replayBootstrapProxyAuthRules()
+  }
+
+  private replayBootstrapProxyAuthRules(): void {
+    if (!this.isConnected() || this.bootstrapProxyAuthRules.size === 0) {
+      return
+    }
+
+    for (const [ruleId, payload] of this.bootstrapProxyAuthRules.entries()) {
+      void this.send('setProxyAuthRule', payload).catch((error) => {
+        logger.warn('Failed to replay bootstrap proxy auth rule', {
+          ruleId,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      })
+    }
   }
 
   private handleWindowEvent(

@@ -308,6 +308,7 @@ export interface BrowserOpsLaunchBundle {
     providerName: string
     maskedUrl: string
     serverArg: string | null
+    country: string
     authMode: string
     credentialSource:
       | 'embedded'
@@ -372,7 +373,19 @@ export interface BrowserOpsManagedInstance {
     cdpReachable: boolean
     serverReachable: boolean
     extensionReachable: boolean
+    proxyAuthBootstrapConfigured: boolean
+    proxyEgressVerified: boolean
+    proxySessionConsistent: boolean
   }
+  proxy: {
+    providerName: string
+    country: string
+    authMode: string
+    credentialSource: 'embedded' | 'env' | 'managed-internal' | 'none'
+    serverArg: string | null
+    sessionId: string | null
+  } | null
+  lastProxyVerification: BrowserOpsProxyVerification | null
   notes: string[]
 }
 
@@ -381,6 +394,26 @@ export interface BrowserOpsInstanceDiagnostics {
   executionIdsWithoutInstances: string[]
   runningInstanceIds: string[]
   unreachableInstanceIds: string[]
+}
+
+export interface BrowserOpsProxyVerification {
+  instanceId: string
+  checkedAt: string
+  targetUrl: string
+  status: 'verified' | 'failed'
+  verdict: 'verified' | 'inconclusive' | 'failed'
+  observedText: string | null
+  detectedIp: string | null
+  detectedCountry: string | null
+  sessionVerdict: 'consistent' | 'changed' | 'not-applicable' | 'unknown'
+  expectedProxy: {
+    providerName: string
+    serverArg: string | null
+    sessionId: string | null
+    country: string
+  } | null
+  bootstrapConfigured: boolean
+  notes: string[]
 }
 
 export interface BrowserOpsInstanceEvent {
