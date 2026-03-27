@@ -14,9 +14,9 @@ This file is the current task board for work that is not fully closed yet. Sourc
   Source: `docs/project-plans/ai-browser-os-browser-ops.md`
   Status: window ownership, runtime binding, browserContext wiring, and diagnostics exist; this round also moved Chromium profile directories to launch-context-scoped names instead of sharing one directory per profile, but full launched-instance isolation and lifecycle closure are still pending.
 
-- [ ] Skill execution and automation landing
+- [x] Skill execution and automation landing
   Source: `docs/project-plans/ai-browser-os-browser-ops.md`
-  Status: task templates now resolve `skillKey` against the real skills catalog, Browser Ops can build an automation brief with recommended `agent`/`lobster` mode, and the page can prepare a managed-window automation run draft that opens the sidepanel with a bound browserContext override, but full server-side one-click execution and post-run orchestration are still not connected.
+  Status: completed in this round. Browser Ops now supports background server-side automation runs with persisted run records, cancellation, result/tool-call capture, post-run cookie vault capture, and the existing sidepanel draft flow remains available.
 
 ## Eval System
 

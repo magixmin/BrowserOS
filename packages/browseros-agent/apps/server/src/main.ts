@@ -229,6 +229,21 @@ export class Application {
       process.exit(EXIT_CODES.PORT_CONFLICT)
     }
 
+    if (serverName === 'CDP') {
+      console.error(
+        `[HINT] BrowserOS Server expects a BrowserOS/Chromium instance exposing CDP on port ${port}.`,
+      )
+      console.error(
+        `[HINT] Verify it with: curl http://127.0.0.1:${port}/json/version`,
+      )
+      console.error(
+        `[HINT] Recommended local dev startup: bun scripts/dev/start.ts --manual --new`,
+      )
+      console.error(
+        `[HINT] If you only run the server, launch BrowserOS separately with --remote-debugging-port=${port}.`,
+      )
+    }
+
     process.exit(EXIT_CODES.GENERAL_ERROR)
   }
 

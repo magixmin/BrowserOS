@@ -96,6 +96,32 @@ export const BrowserOpsAutomationRunSchema = BrowserOpsPreviewRequestSchema.exte
   },
 )
 
+export const BrowserOpsAutomationLlmSchema = z.object({
+  provider: z.string().min(1),
+  providerName: z.string().min(1).optional(),
+  model: z.string().min(1),
+  apiKey: z.string().optional(),
+  baseUrl: z.string().optional(),
+  resourceName: z.string().optional(),
+  accessKeyId: z.string().optional(),
+  secretAccessKey: z.string().optional(),
+  region: z.string().optional(),
+  sessionToken: z.string().optional(),
+  contextWindowSize: z.number().int().positive().optional(),
+  supportsImages: z.boolean().optional().default(true),
+  reasoningEffort: z.enum(['none', 'low', 'medium', 'high']).optional(),
+  reasoningSummary: z.enum(['auto', 'concise', 'detailed']).optional(),
+})
+
+export const BrowserOpsAutomationExecuteSchema =
+  BrowserOpsAutomationRunSchema.extend({
+    llm: BrowserOpsAutomationLlmSchema,
+  })
+
+export const BrowserOpsAutomationRunParamSchema = z.object({
+  runId: z.string().uuid(),
+})
+
 export const BrowserOpsReleaseAllocationSchema = z.object({
   allocationId: z.string().uuid(),
 })

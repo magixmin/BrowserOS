@@ -36,6 +36,10 @@ export function getBrowserOpsRuntimeAssetsDir(): string {
   return join(getBrowserOpsDir(), PATHS.BROWSER_OPS_RUNTIME_ASSETS_DIR_NAME)
 }
 
+export function getBrowserOpsAutomationRunsDir(): string {
+  return join(getBrowserOpsDir(), PATHS.BROWSER_OPS_AUTOMATION_RUNS_DIR_NAME)
+}
+
 export function getBrowserOpsLaunchBundlesDir(): string {
   return join(getBrowserOpsDir(), PATHS.BROWSER_OPS_LAUNCH_BUNDLES_DIR_NAME)
 }
@@ -77,6 +81,7 @@ export async function ensureBrowserosDir(): Promise<void> {
   await mkdir(getBrowserOpsCookieVaultsDir(), { recursive: true })
   await mkdir(getBrowserOpsRuntimeSpecsDir(), { recursive: true })
   await mkdir(getBrowserOpsRuntimeAssetsDir(), { recursive: true })
+  await mkdir(getBrowserOpsAutomationRunsDir(), { recursive: true })
   await mkdir(getBrowserOpsLaunchBundlesDir(), { recursive: true })
   await mkdir(getBrowserOpsLaunchExecutionsDir(), { recursive: true })
   await mkdir(getBrowserOpsInstancesDir(), { recursive: true })

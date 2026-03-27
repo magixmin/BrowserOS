@@ -26,6 +26,7 @@ mock.module('../../src/lib/browseros-dir', () => ({
   getBrowserOpsCookieVaultsDir: () => join(rootDir, 'cookie-vaults'),
   getBrowserOpsRuntimeSpecsDir: () => join(rootDir, 'runtime-specs'),
   getBrowserOpsRuntimeAssetsDir: () => join(rootDir, 'runtime-assets'),
+  getBrowserOpsAutomationRunsDir: () => join(rootDir, 'automation-runs'),
 }))
 
 const { BrowserOpsRuntimeInstanceStore } = await import(

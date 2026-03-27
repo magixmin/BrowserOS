@@ -39,6 +39,7 @@ import {
   type BrowserOpsControllerWindowOwnership,
   type BrowserOpsAutomationChatDraft,
   type BrowserOpsCookieVaultSummary,
+  type BrowserOpsAutomationRun,
   type BrowserOpsInstanceDiagnostics,
   type BrowserOpsInstanceEvent,
   type BrowserOpsLaunchBundle,
@@ -67,6 +68,7 @@ import {
   createTaskDraft,
   useBrowserOpsWorkspace,
 } from '@/lib/browser-ops/workspace'
+import { useLlmProviders } from '@/lib/llm-providers/useLlmProviders'
 import { useRpcClient } from '@/lib/rpc/RpcClientProvider'
 
 function formatPercent(value: number): string {
@@ -106,6 +108,7 @@ export const BrowserOpsPage: FC = () => {
     addTask,
     removeTask,
   } = useBrowserOpsWorkspace()
+  const { selectedProvider, isLoading: llmProvidersLoading } = useLlmProviders()
   const rpcClient = useRpcClient()
   const [selectedProfileId, setSelectedProfileId] = useState<string>('')
   const [selectedTaskId, setSelectedTaskId] = useState<string>('')
@@ -153,6 +156,12 @@ export const BrowserOpsPage: FC = () => {
   const [launchExecutions, setLaunchExecutions] = useState<
     BrowserOpsLaunchExecution[]
   >([])
+  const [automationRuns, setAutomationRuns] = useState<BrowserOpsAutomationRun[]>(
+    [],
+  )
+  const [automationRunsError, setAutomationRunsError] = useState<string | null>(
+    null,
+  )
   const [launchDiagnostics, setLaunchDiagnostics] =
     useState<BrowserOpsLaunchDiagnostics | null>(null)
   const [managedInstances, setManagedInstances] = useState<
@@ -184,6 +193,7 @@ export const BrowserOpsPage: FC = () => {
   const [bindingPending, setBindingPending] = useState(false)
   const [bindingError, setBindingError] = useState<string | null>(null)
   const [automationRunPending, setAutomationRunPending] = useState(false)
+  const [automationExecutePending, setAutomationExecutePending] = useState(false)
 
   useEffect(() => {
     if (!workspace.profiles.length) {
@@ -391,6 +401,15 @@ export const BrowserOpsPage: FC = () => {
       executions: BrowserOpsLaunchExecution[]
     }
     setLaunchExecutions(result.executions)
+  }, [rpcClient])
+
+  const refreshAutomationRuns = useCallback(async () => {
+    const response = await rpcClient['browser-ops'].automation.runs.$get()
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const result = (await response.json()) as {
+      runs: BrowserOpsAutomationRun[]
+    }
+    setAutomationRuns(result.runs)
   }, [rpcClient])
 
   const refreshLaunchDiagnostics = useCallback(async () => {
@@ -723,6 +742,53 @@ export const BrowserOpsPage: FC = () => {
       cancelled = true
     }
   }, [rpcClient])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadAutomationRuns = async () => {
+      try {
+        const response = await rpcClient['browser-ops'].automation.runs.$get()
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        const result = (await response.json()) as {
+          runs: BrowserOpsAutomationRun[]
+        }
+        if (!cancelled) {
+          setAutomationRuns(result.runs)
+          setAutomationRunsError(null)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setAutomationRuns([])
+          setAutomationRunsError(
+            error instanceof Error
+              ? error.message
+              : 'Failed to load automation runs',
+          )
+        }
+      }
+    }
+
+    void loadAutomationRuns()
+
+    return () => {
+      cancelled = true
+    }
+  }, [rpcClient])
+
+  useEffect(() => {
+    if (!automationRuns.some((run) => run.status === 'queued' || run.status === 'running')) {
+      return
+    }
+
+    const interval = window.setInterval(() => {
+      void refreshAutomationRuns().catch(() => {})
+    }, 2000)
+
+    return () => {
+      window.clearInterval(interval)
+    }
+  }, [automationRuns, refreshAutomationRuns])
 
   useEffect(() => {
     let cancelled = false
@@ -1172,7 +1238,7 @@ export const BrowserOpsPage: FC = () => {
     }
   }
 
-  const startAutomationRun = async () => {
+  const draftAutomationRun = async () => {
     if (!selectedProfile || !selectedTask || !automationBrief) {
       toast.error('Select a profile and task first')
       return
@@ -1250,6 +1316,7 @@ export const BrowserOpsPage: FC = () => {
       await refreshInstanceDiagnostics()
       await refreshWindowOwnership()
       await refreshRuntimeDiagnostics()
+      await refreshAutomationRuns()
 
       toast.success('Automation run drafted in sidepanel')
     } catch (error) {
@@ -1260,6 +1327,126 @@ export const BrowserOpsPage: FC = () => {
       )
     } finally {
       setAutomationRunPending(false)
+    }
+  }
+
+  const runAutomationOnServer = async () => {
+    if (!selectedProfile || !selectedTask || !automationBrief) {
+      toast.error('Select a profile and task first')
+      return
+    }
+    if (!selectedProvider) {
+      toast.error('Configure an LLM provider before starting automation')
+      return
+    }
+
+    setAutomationExecutePending(true)
+    try {
+      const response = await rpcClient['browser-ops'].automation.run.$post({
+        json: {
+          profile: selectedProfile,
+          task: selectedTask,
+          proxies: workspace.proxies,
+          settings: workspace.settings,
+          mode: automationBrief.recommendedMode,
+          forceManagedWindow: true,
+          restoreCookieVault: true,
+          llm: {
+            provider: selectedProvider.type,
+            providerName: selectedProvider.name,
+            model: selectedProvider.modelId,
+            apiKey: selectedProvider.apiKey,
+            baseUrl: selectedProvider.baseUrl,
+            resourceName: selectedProvider.resourceName,
+            accessKeyId: selectedProvider.accessKeyId,
+            secretAccessKey: selectedProvider.secretAccessKey,
+            region: selectedProvider.region,
+            sessionToken: selectedProvider.sessionToken,
+            contextWindowSize: selectedProvider.contextWindow,
+            supportsImages: selectedProvider.supportsImages,
+            reasoningEffort: selectedProvider.reasoningEffort,
+            reasoningSummary: selectedProvider.reasoningSummary,
+          },
+        },
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+      const result = (await response.json()) as {
+        run: BrowserOpsAutomationRun
+        brief: BrowserOpsAutomationBrief
+        allocation: BrowserOpsRouteAllocation
+        binding: BrowserOpsRuntimeBinding
+      }
+
+      setAllocations((current) => {
+        const filtered = current.filter(
+          (allocation) =>
+            allocation.allocationId !== result.allocation.allocationId,
+        )
+        return [result.allocation, ...filtered]
+      })
+      setRuntimeBindings((current) => {
+        const filtered = current.filter(
+          (binding) =>
+            binding.bindingId !== result.binding.bindingId &&
+            binding.allocationId !== result.binding.allocationId,
+        )
+        return [result.binding, ...filtered]
+      })
+      setAutomationBrief(result.brief)
+      setAutomationRuns((current) => {
+        const filtered = current.filter((run) => run.runId !== result.run.runId)
+        return [result.run, ...filtered]
+      })
+
+      await refreshRuntimeSessionSpecs()
+      await refreshRuntimeAssets()
+      await refreshCookieVaults()
+      await refreshLaunchBundles()
+      await refreshLaunchExecutions()
+      await refreshLaunchDiagnostics()
+      await refreshManagedInstances()
+      await refreshInstanceDiagnostics()
+      await refreshWindowOwnership()
+      await refreshRuntimeDiagnostics()
+      await refreshAutomationRuns()
+
+      toast.success('Automation run started on local server')
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to start server automation run',
+      )
+    } finally {
+      setAutomationExecutePending(false)
+    }
+  }
+
+  const cancelAutomationRun = async (runId: string) => {
+    setAutomationExecutePending(true)
+    try {
+      const response = await rpcClient['browser-ops'].automation.runs[
+        ':runId'
+      ].cancel.$post({
+        param: { runId },
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const result = (await response.json()) as {
+        run: BrowserOpsAutomationRun
+      }
+      setAutomationRuns((current) => {
+        const filtered = current.filter((run) => run.runId !== result.run.runId)
+        return [result.run, ...filtered]
+      })
+      await refreshAutomationRuns()
+      toast.success('Automation run cancelled')
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to cancel automation run',
+      )
+    } finally {
+      setAutomationExecutePending(false)
     }
   }
 
@@ -2507,14 +2694,29 @@ export const BrowserOpsPage: FC = () => {
                         <Button
                           size="sm"
                           disabled={
+                            automationExecutePending ||
+                            !selectedProvider ||
+                            llmProvidersLoading ||
+                            automationBrief.readiness !== 'ready'
+                          }
+                          onClick={runAutomationOnServer}
+                        >
+                          {automationExecutePending
+                            ? 'Starting server run...'
+                            : 'Run On Server'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={
                             automationRunPending ||
                             automationBrief.readiness !== 'ready'
                           }
-                          onClick={startAutomationRun}
+                          onClick={draftAutomationRun}
                         >
                           {automationRunPending
-                            ? 'Preparing...'
-                            : 'Run In Sidepanel'}
+                            ? 'Preparing sidepanel...'
+                            : 'Draft In Sidepanel'}
                         </Button>
                       </div>
                       <div className="grid gap-3 md:grid-cols-2">
@@ -2537,6 +2739,16 @@ export const BrowserOpsPage: FC = () => {
                         <MiniInfo
                           label="Resolved Skill"
                           value={automationBrief.resolvedSkillId ?? 'None'}
+                        />
+                        <MiniInfo
+                          label="LLM Provider"
+                          value={
+                            llmProvidersLoading
+                              ? 'Loading...'
+                              : selectedProvider
+                                ? `${selectedProvider.name} / ${selectedProvider.modelId}`
+                                : 'Not configured'
+                          }
                         />
                       </div>
                       {automationBrief.missingRequirements.length ? (
@@ -2570,6 +2782,91 @@ export const BrowserOpsPage: FC = () => {
                         <pre className="whitespace-pre-wrap break-words text-sm">
                           {automationBrief.executionPrompt}
                         </pre>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="font-medium text-sm">
+                          Automation Runs
+                        </div>
+                        {automationRunsError ? (
+                          <div className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-amber-700 text-sm dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300">
+                            Failed to load automation runs: {automationRunsError}
+                          </div>
+                        ) : automationRuns.length ? (
+                          <div className="space-y-2">
+                            {automationRuns.slice(0, 5).map((run) => (
+                              <div
+                                key={run.runId}
+                                className="rounded-xl border border-border/60 bg-muted/20 p-3"
+                              >
+                                <div className="flex flex-wrap items-start justify-between gap-2">
+                                  <div>
+                                    <div className="font-medium text-sm">
+                                      {run.provider.providerName ?? run.provider.provider}
+                                    </div>
+                                    <div className="text-muted-foreground text-xs">
+                                      {run.provider.model}
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <Badge variant="outline">{run.status}</Badge>
+                                    {run.status === 'queued' ||
+                                    run.status === 'running' ? (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={automationExecutePending}
+                                        onClick={() => cancelAutomationRun(run.runId)}
+                                      >
+                                        Cancel
+                                      </Button>
+                                    ) : null}
+                                  </div>
+                                </div>
+                                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                  <MiniInfo
+                                    label="Conversation"
+                                    value={run.conversationId}
+                                  />
+                                  <MiniInfo
+                                    label="Cookies"
+                                    value={`${run.restoredCookies} restored / ${run.capturedCookies} captured`}
+                                  />
+                                  <MiniInfo
+                                    label="Page"
+                                    value={run.page.url}
+                                  />
+                                  <MiniInfo
+                                    label="Updated"
+                                    value={new Date(run.updatedAt).toLocaleString()}
+                                  />
+                                </div>
+                                {run.error ? (
+                                  <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-amber-700 text-sm dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300">
+                                    {run.error}
+                                  </div>
+                                ) : null}
+                                {run.finalResult ? (
+                                  <div className="mt-3 rounded-lg border border-border/60 bg-background/70 px-3 py-2 text-sm">
+                                    {run.finalResult}
+                                  </div>
+                                ) : run.fullText ? (
+                                  <div className="mt-3 rounded-lg border border-border/60 bg-background/70 px-3 py-2 text-sm">
+                                    {run.fullText}
+                                  </div>
+                                ) : null}
+                                {run.toolCalls.length ? (
+                                  <div className="mt-3 text-muted-foreground text-xs">
+                                    Tool calls: {run.toolCalls.length}
+                                  </div>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                            No automation runs yet.
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (

@@ -40,6 +40,7 @@ mock.module('../../src/lib/browseros-dir', () => ({
   getBrowserOpsCookieVaultsDir: () => cookieVaultsDir,
   getBrowserOpsRuntimeSpecsDir: () => specsDir,
   getBrowserOpsRuntimeAssetsDir: () => assetsDir,
+  getBrowserOpsAutomationRunsDir: () => join(rootDir, 'automation-runs'),
   getBrowserOpsLaunchBundlesDir: () => launchBundlesDir,
   getBrowserOpsLaunchExecutionsDir: () => launchExecutionsDir,
   getBrowserOpsInstancesDir: () => join(rootDir, 'instances'),

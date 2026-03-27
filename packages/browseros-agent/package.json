@@ -13,6 +13,7 @@
     "dev:watch": "./tools/dev/run.sh watch",
     "dev:watch:new": "./tools/dev/run.sh watch --new",
     "dev:manual": "./tools/dev/run.sh watch --manual",
+    "dev:doctor": "bun scripts/dev/doctor.ts",
     "test:env": "./tools/dev/run.sh test",
     "test:cleanup": "./tools/dev/run.sh cleanup",
     "start:server": "bun run --filter @browseros/server --elide-lines=0 start",

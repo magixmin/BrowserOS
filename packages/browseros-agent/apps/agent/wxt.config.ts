@@ -1,5 +1,7 @@
 import { sentryVitePlugin } from '@sentry/vite-plugin'
 import tailwindcss from '@tailwindcss/vite'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'wxt'
 import { LEGACY_AGENT_EXTENSION_ID } from './lib/constants/legacyAgentExtensionId'
 import { PRODUCT_NAME } from './lib/constants/product'
@@ -13,6 +15,8 @@ const apiUrl = new URL(env.VITE_PUBLIC_BROWSEROS_API!)
 const apiPattern = apiUrl.port
   ? `${apiUrl.hostname}:${apiUrl.port}`
   : apiUrl.hostname
+const APP_DIR = dirname(fileURLToPath(import.meta.url))
+const SHARED_SRC_DIR = join(APP_DIR, '../../packages/shared/src')
 
 // See https://wxt.dev/api/config.html
 // Extension ID will be bflpfmnmnokmjhmgnolecpppdbdophmk
@@ -71,6 +75,11 @@ export default defineConfig({
     ],
   },
   vite: () => ({
+    resolve: {
+      alias: {
+        '@browseros/shared': SHARED_SRC_DIR,
+      },
+    },
     build: {
       sourcemap: 'hidden',
     },

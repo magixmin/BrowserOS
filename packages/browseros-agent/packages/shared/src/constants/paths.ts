@@ -16,6 +16,7 @@ export const PATHS = {
   BROWSER_OPS_COOKIE_VAULTS_DIR_NAME: 'cookie-vaults',
   BROWSER_OPS_RUNTIME_SPECS_DIR_NAME: 'runtime-specs',
   BROWSER_OPS_RUNTIME_ASSETS_DIR_NAME: 'runtime-assets',
+  BROWSER_OPS_AUTOMATION_RUNS_DIR_NAME: 'automation-runs',
   BROWSER_OPS_LAUNCH_BUNDLES_DIR_NAME: 'launch-bundles',
   BROWSER_OPS_LAUNCH_EXECUTIONS_DIR_NAME: 'launch-executions',
   BROWSER_OPS_INSTANCES_DIR_NAME: 'instances',

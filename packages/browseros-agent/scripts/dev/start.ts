@@ -13,7 +13,8 @@ type Mode = 'watch' | 'manual'
 const MONOREPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..')
 const BROWSEROS_BINARY = '/Applications/BrowserOS.app/Contents/MacOS/BrowserOS'
 const CONTROLLER_EXT_DIR = join(MONOREPO_ROOT, 'apps/controller-ext/dist')
-const AGENT_EXT_DIR = join(MONOREPO_ROOT, 'apps/agent/dist/chrome-mv3-dev')
+const AGENT_EXT_DEV_DIR = join(MONOREPO_ROOT, 'apps/agent/dist/chrome-mv3-dev')
+const AGENT_EXT_PROD_DIR = join(MONOREPO_ROOT, 'apps/agent/dist/chrome-mv3')
 let USER_DATA_DIR = '/tmp/browseros-dev'
 
 const TAG = {
@@ -155,6 +156,13 @@ function createEnv(ports: Ports): NodeJS.ProcessEnv {
   }
 }
 
+function deriveAppBundlePath(binaryPath: string): string | null {
+  const marker = '.app/Contents/MacOS/'
+  const index = binaryPath.indexOf(marker)
+  if (index < 0) return null
+  return binaryPath.slice(0, index + '.app'.length)
+}
+
 function prefixLines(prefix: keyof typeof TAG, text: string): string {
   return text
     .split('\n')
@@ -188,7 +196,10 @@ function startWatchMode(env: NodeJS.ProcessEnv): ReturnType<typeof spawn> {
   })
 }
 
-function startManualBrowser(ports: Ports): ReturnType<typeof spawn> {
+function startManualBrowser(
+  ports: Ports,
+  agentExtensionDir: string,
+): ReturnType<typeof spawn> {
   const args = [
     '--no-first-run',
     '--no-default-browser-check',
@@ -201,7 +212,7 @@ function startManualBrowser(ports: Ports): ReturnType<typeof spawn> {
     `--browseros-mcp-port=${ports.server}`,
     `--browseros-extension-port=${ports.extension}`,
     `--user-data-dir=${USER_DATA_DIR}`,
-    `--load-extension=${CONTROLLER_EXT_DIR},${AGENT_EXT_DIR}`,
+    `--load-extension=${CONTROLLER_EXT_DIR},${agentExtensionDir}`,
     'chrome://newtab',
   ]
 
@@ -209,10 +220,32 @@ function startManualBrowser(ports: Ports): ReturnType<typeof spawn> {
   log('browser', `  Profile: ${USER_DATA_DIR}`)
   log('browser', `  CDP: http://127.0.0.1:${ports.cdp}`)
 
+  const appBundlePath = deriveAppBundlePath(BROWSEROS_BINARY)
+  if (process.platform === 'darwin' && appBundlePath) {
+    log('browser', `  Launch mode: open -na ${appBundlePath}`)
+    return spawn({
+      cmd: ['open', '-na', appBundlePath, '--args', ...args],
+      stdout: 'pipe',
+      stderr: 'pipe',
+    })
+  }
+
   return spawn({
     cmd: [BROWSEROS_BINARY, ...args],
     stdout: 'pipe',
     stderr: 'pipe',
+  })
+}
+
+function cleanupManualBrowser(): void {
+  spawnSync({
+    cmd: [
+      'sh',
+      '-c',
+      `pkill -f ${JSON.stringify(USER_DATA_DIR)} 2>/dev/null || true`,
+    ],
+    stdout: 'ignore',
+    stderr: 'ignore',
   })
 }
 
@@ -266,9 +299,9 @@ async function main() {
   buildExtension('controller-ext', 'build:ext')
 
   if (args.mode === 'manual') {
-    buildExtension('agent', 'build:agent:dev')
+    buildExtension('agent', 'build:agent')
 
-    const browserProc = startManualBrowser(ports)
+    const browserProc = startManualBrowser(ports, AGENT_EXT_PROD_DIR)
     procs.push(browserProc)
     streams.push(
       streamOutput(browserProc.stdout, 'browser'),
@@ -299,6 +332,7 @@ async function main() {
   )
 
   const cleanup = () => {
+    cleanupManualBrowser()
     for (const proc of procs) proc.kill()
   }
 

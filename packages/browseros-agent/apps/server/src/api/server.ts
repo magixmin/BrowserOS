@@ -119,7 +119,10 @@ export async function createHttpServer(config: HttpServerConfig) {
       }),
     )
     .route('/status', createStatusRoute({ controller }))
-    .route('/browser-ops', createBrowserOpsRoutes({ browser, controller }))
+    .route(
+      '/browser-ops',
+      createBrowserOpsRoutes({ browser, controller, serverPort: port }),
+    )
     .route('/soul', createSoulRoutes())
     .route('/memory', createMemoryRoutes())
     .route('/skills', createSkillsRoutes())

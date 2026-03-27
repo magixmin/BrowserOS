@@ -216,6 +216,61 @@ export interface BrowserOpsAutomationChatDraft {
   }
 }
 
+export interface BrowserOpsAutomationTargetPage {
+  pageId: number
+  tabId: number
+  windowId?: number
+  url: string
+  title: string
+}
+
+export interface BrowserOpsAutomationToolCall {
+  id: string
+  name: string
+  input: unknown
+  output?: unknown
+  error?: string
+  timestamp: string
+}
+
+export interface BrowserOpsAutomationRunProvider {
+  provider: string
+  providerName?: string
+  model: string
+  supportsImages: boolean
+  reasoningEffort?: 'none' | 'low' | 'medium' | 'high'
+  reasoningSummary?: 'auto' | 'concise' | 'detailed'
+}
+
+export interface BrowserOpsAutomationRun {
+  runId: string
+  conversationId: string
+  profileId: string
+  taskId: string
+  allocationId: string
+  bindingId: string
+  runtimeSpecId: string | null
+  mode: 'agent' | 'lobster'
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'
+  provider: BrowserOpsAutomationRunProvider
+  brief: BrowserOpsAutomationBrief
+  page: BrowserOpsAutomationTargetPage
+  browserContext: BrowserOpsAutomationChatDraft['browserContext']
+  prompt: string
+  createdAt: string
+  startedAt: string | null
+  updatedAt: string
+  completedAt: string | null
+  restoredCookies: number
+  capturedCookies: number
+  fullText: string
+  finalResult: string
+  executionLog: string
+  toolCalls: BrowserOpsAutomationToolCall[]
+  finishReason: string | null
+  error: string | null
+}
+
 export interface BrowserOpsRouteAllocation {
   allocationId: string
   profileId: string

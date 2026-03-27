@@ -2,6 +2,7 @@ import { dirname, resolve } from 'node:path'
 import { describe, it, mock } from 'bun:test'
 import assert from 'node:assert'
 import type {
+  BrowserOpsAutomationRun,
   BrowserOpsInstanceDiagnostics,
   BrowserOpsInstanceEvent,
   BrowserOpsLaunchBundle,
@@ -26,6 +27,8 @@ mock.module('../../src/lib/browseros-dir', () => {
     getBrowserOpsCookieVaultsDir: () => resolve(browserOpsDir, 'cookie-vaults'),
     getBrowserOpsRuntimeSpecsDir: () => resolve(browserOpsDir, 'runtime-specs'),
     getBrowserOpsRuntimeAssetsDir: () => resolve(browserOpsDir, 'runtime-assets'),
+    getBrowserOpsAutomationRunsDir: () =>
+      resolve(browserOpsDir, 'automation-runs'),
     getBrowserOpsLaunchBundlesDir: () => resolve(browserOpsDir, 'launch-bundles'),
     getBrowserOpsLaunchExecutionsDir: () =>
       resolve(browserOpsDir, 'launch-executions'),
@@ -119,6 +122,7 @@ function createRouteApp() {
   const bundles = new Map<string, BrowserOpsLaunchBundle>()
   const executions = new Map<string, BrowserOpsLaunchExecution>()
   const instances = new Map<string, BrowserOpsManagedInstance>()
+  const automationRuns = new Map<string, BrowserOpsAutomationRun>()
   const events: BrowserOpsInstanceEvent[] = []
   const vaults = new Map<
     string,
@@ -870,10 +874,84 @@ function createRouteApp() {
         events.length = 0
       },
     },
+    automationRunner: {
+      async listRuns() {
+        return [...automationRuns.values()].sort((left, right) =>
+          left.updatedAt < right.updatedAt ? 1 : -1,
+        )
+      },
+      async getRun(runId: string) {
+        return automationRuns.get(runId) ?? null
+      },
+      async startRun({ preparation, llm }) {
+        const now = new Date().toISOString()
+        const run: BrowserOpsAutomationRun = {
+          runId: '11111111-1111-4111-8111-111111111111',
+          conversationId: '22222222-2222-4222-8222-222222222222',
+          profileId: preparation.brief.profileId,
+          taskId: preparation.brief.taskId,
+          allocationId: preparation.allocation.allocationId,
+          bindingId: preparation.binding.bindingId,
+          runtimeSpecId: preparation.binding.runtimeSpecId,
+          mode: preparation.mode,
+          status: 'running',
+          provider: {
+            provider: llm.provider,
+            providerName: llm.providerName,
+            model: llm.model,
+            supportsImages: llm.supportsImages ?? true,
+            reasoningEffort: llm.reasoningEffort,
+            reasoningSummary: llm.reasoningSummary,
+          },
+          brief: preparation.brief,
+          page: preparation.page,
+          browserContext: {
+            ...(typeof preparation.page.windowId === 'number'
+              ? { windowId: preparation.page.windowId }
+              : {}),
+            activeTab: {
+              id: preparation.page.tabId,
+              pageId: preparation.page.pageId,
+              url: preparation.page.url,
+              title: preparation.page.title,
+            },
+          },
+          prompt: preparation.brief.executionPrompt,
+          createdAt: now,
+          startedAt: now,
+          updatedAt: now,
+          completedAt: null,
+          restoredCookies: preparation.restoredCookies,
+          capturedCookies: 0,
+          fullText: '',
+          finalResult: '',
+          executionLog: '',
+          toolCalls: [],
+          finishReason: null,
+          error: null,
+        }
+        automationRuns.set(run.runId, run)
+        return run
+      },
+      async cancelRun(runId: string) {
+        const existing = automationRuns.get(runId)
+        if (!existing) return null
+        const next: BrowserOpsAutomationRun = {
+          ...existing,
+          status: 'cancelled',
+          error: 'Run cancelled by user.',
+          updatedAt: new Date().toISOString(),
+          completedAt: new Date().toISOString(),
+        }
+        automationRuns.set(runId, next)
+        return next
+      },
+    },
   })
 
   return Object.assign(app, {
     __testState: {
+      automationRuns,
       controllerMessages,
       liveBrowserContexts,
       disposedBrowserContexts,
@@ -1046,6 +1124,125 @@ describe('Browser Ops routes', () => {
       json.chatDraft.browserContext.activeTab?.pageId,
       json.binding.pageId,
     )
+
+    if (originalUser === undefined) delete process.env.BROWSER_OPS_BRIGHTDATA_USERNAME
+    else process.env.BROWSER_OPS_BRIGHTDATA_USERNAME = originalUser
+    if (originalPass === undefined) delete process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD
+    else process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD = originalPass
+  })
+
+  it('starts a background automation run and returns the run record', async () => {
+    const originalUser = process.env.BROWSER_OPS_BRIGHTDATA_USERNAME
+    const originalPass = process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD
+    process.env.BROWSER_OPS_BRIGHTDATA_USERNAME = 'brd-user'
+    process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD = 'brd-pass'
+
+    const app = createRouteApp()
+    const payload = createPreviewPayload()
+
+    const response = await app.request('/automation/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...payload,
+        mode: 'agent',
+        forceManagedWindow: true,
+        restoreCookieVault: true,
+        llm: {
+          provider: 'openai',
+          providerName: 'OpenAI',
+          model: 'gpt-4.1',
+          apiKey: 'test-key',
+          supportsImages: true,
+          reasoningEffort: 'medium',
+        },
+      }),
+    })
+
+    assert.strictEqual(response.status, 201)
+    const json = (await response.json()) as {
+      run: {
+        runId: string
+        status: string
+        provider: { provider: string; model: string }
+      }
+      binding: { bindingId: string }
+      allocation: { allocationId: string }
+    }
+    assert.strictEqual(json.run.status, 'running')
+    assert.strictEqual(json.run.provider.provider, 'openai')
+    assert.strictEqual(json.run.provider.model, 'gpt-4.1')
+    assert.ok(json.run.runId)
+    assert.ok(json.binding.bindingId)
+    assert.ok(json.allocation.allocationId)
+
+    if (originalUser === undefined) delete process.env.BROWSER_OPS_BRIGHTDATA_USERNAME
+    else process.env.BROWSER_OPS_BRIGHTDATA_USERNAME = originalUser
+    if (originalPass === undefined) delete process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD
+    else process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD = originalPass
+  })
+
+  it('lists, reads, and cancels automation runs', async () => {
+    const originalUser = process.env.BROWSER_OPS_BRIGHTDATA_USERNAME
+    const originalPass = process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD
+    process.env.BROWSER_OPS_BRIGHTDATA_USERNAME = 'brd-user'
+    process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD = 'brd-pass'
+
+    const app = createRouteApp()
+    const payload = createPreviewPayload()
+
+    const startResponse = await app.request('/automation/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...payload,
+        mode: 'agent',
+        forceManagedWindow: true,
+        restoreCookieVault: true,
+        llm: {
+          provider: 'openai',
+          providerName: 'OpenAI',
+          model: 'gpt-4.1',
+          apiKey: 'test-key',
+          supportsImages: true,
+        },
+      }),
+    })
+    assert.strictEqual(startResponse.status, 201)
+    const startJson = (await startResponse.json()) as {
+      run: { runId: string }
+    }
+
+    const listResponse = await app.request('/automation/runs')
+    assert.strictEqual(listResponse.status, 200)
+    const listJson = (await listResponse.json()) as {
+      runs: Array<{ runId: string; status: string }>
+    }
+    assert.strictEqual(listJson.runs.length, 1)
+    assert.strictEqual(listJson.runs[0]?.runId, startJson.run.runId)
+
+    const getResponse = await app.request(
+      `/automation/runs/${startJson.run.runId}`,
+    )
+    assert.strictEqual(getResponse.status, 200)
+    const getJson = (await getResponse.json()) as {
+      run: { runId: string; status: string }
+    }
+    assert.strictEqual(getJson.run.runId, startJson.run.runId)
+    assert.strictEqual(getJson.run.status, 'running')
+
+    const cancelResponse = await app.request(
+      `/automation/runs/${startJson.run.runId}/cancel`,
+      {
+        method: 'POST',
+      },
+    )
+    assert.strictEqual(cancelResponse.status, 200)
+    const cancelJson = (await cancelResponse.json()) as {
+      run: { status: string; error: string | null }
+    }
+    assert.strictEqual(cancelJson.run.status, 'cancelled')
+    assert.strictEqual(cancelJson.run.error, 'Run cancelled by user.')
 
     if (originalUser === undefined) delete process.env.BROWSER_OPS_BRIGHTDATA_USERNAME
     else process.env.BROWSER_OPS_BRIGHTDATA_USERNAME = originalUser
