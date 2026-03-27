@@ -2,14 +2,14 @@ import { type UseQueryOptions, useQuery } from '@tanstack/react-query'
 import type { TypedDocumentString } from '@/generated/graphql/graphql'
 import { execute } from './execute'
 import { getQueryKeyFromDocument } from './getQueryKeyFromDocument'
+import type { GraphqlVariablesInput } from './types'
 
 /**
  * @public
  */
 export const useGraphqlQuery = <
   TResult,
-  // biome-ignore lint/suspicious/noExplicitAny: TODO(dani) type GraphQL variables properly
-  TVariables extends Record<string, any> | undefined = undefined,
+  TVariables extends GraphqlVariablesInput = undefined,
 >(
   query: TypedDocumentString<TResult, TVariables>,
   variables?: TVariables,

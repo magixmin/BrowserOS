@@ -86,6 +86,36 @@ function createRuntimeSpec() {
   }
 }
 
+function createRuntimeSpecWithProxy() {
+  return {
+    ...createRuntimeSpec(),
+    specId: 'spec_proxy',
+    bindingId: 'binding_proxy',
+    allocationId: 'allocation_proxy',
+    proxyResolution: {
+      providerId: 'byo' as const,
+      providerName: 'Bring Your Own',
+      endpointHost: 'proxy.example.com',
+      endpointPort: 8443,
+      endpointScheme: 'http' as const,
+      proxyServerArg: 'http://proxy.example.com:8443',
+      authMode: 'embedded-credentials' as const,
+      credentialSource: 'embedded' as const,
+      credentialEnv: null,
+      credentialStatus: 'not-required' as const,
+      missingCredentialEnv: [],
+      proxyUrlMasked: 'http://user:***@proxy.example.com:8443/',
+      sessionId: null,
+      country: 'US',
+      routeMode: 'sticky' as const,
+      passwordRequired: true,
+      usernameTemplate: 'user',
+      notes: [],
+      warnings: [],
+    },
+  }
+}
+
 describe('BrowserOpsRuntimePersistenceService', () => {
   it('materializes runtime assets to disk', async () => {
     const service = new BrowserOpsRuntimePersistenceService()
@@ -118,6 +148,42 @@ describe('BrowserOpsRuntimePersistenceService', () => {
     const bundles = await service.listLaunchBundles()
     assert.strictEqual(bundles.length, 1)
     assert.strictEqual(bundles[0]?.specId, 'spec_1')
+  })
+
+  it('uses the safe proxy server arg in launch bundles', async () => {
+    const service = new BrowserOpsRuntimePersistenceService()
+    await service.materializeRuntimeSessionSpec(createRuntimeSpecWithProxy())
+
+    const bundle = await service.materializeLaunchBundle('spec_proxy')
+
+    assert.ok(bundle)
+    assert.strictEqual(
+      bundle?.proxy?.maskedUrl,
+      'http://user:***@proxy.example.com:8443/',
+    )
+    assert.strictEqual(
+      bundle?.proxy?.serverArg,
+      'http://proxy.example.com:8443',
+    )
+    assert.strictEqual(bundle?.proxy?.credentialSource, 'embedded')
+    assert.strictEqual(bundle?.proxy?.credentialEnv, null)
+    assert.strictEqual(bundle?.proxy?.credentialStatus, 'not-required')
+    assert.deepStrictEqual(bundle?.proxy?.missingCredentialEnv, [])
+    assert.strictEqual(bundle?.proxy?.passwordRequired, true)
+    assert.strictEqual(bundle?.env.BROWSER_OPS_PROXY_SERVER, 'http://proxy.example.com:8443')
+    assert.strictEqual(
+      bundle?.env.BROWSER_OPS_PROXY_CREDENTIAL_SOURCE,
+      'embedded',
+    )
+    assert.strictEqual(
+      bundle?.env.BROWSER_OPS_PROXY_AUTH_MODE,
+      'embedded-credentials',
+    )
+    assert.ok(
+      bundle?.chromiumArgs.includes(
+        '--proxy-server=http://proxy.example.com:8443',
+      ),
+    )
   })
 
   it('marks assets as released by binding or allocation', async () => {

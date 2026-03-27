@@ -10,7 +10,7 @@ export class CaptureContext {
   private taskId: string
   private errors: TaskError[] = []
   private warnings: EvalWarning[] = []
-  private pendingScreenshot: number | null = null
+  private pendingScreenshots: number[] = []
   private onEvent?: (taskId: string, event: Record<string, unknown>) => void
 
   private activePageId: number
@@ -55,6 +55,14 @@ export class CaptureContext {
     this.onEvent?.(taskId, event)
   }
 
+  queueScreenshot(screenshot: number): void {
+    this.pendingScreenshots.push(screenshot)
+  }
+
+  takePendingScreenshot(): number | undefined {
+    return this.pendingScreenshots.shift()
+  }
+
   /**
    * Create a stream writer that captures and logs all stream events
    */
@@ -67,15 +75,15 @@ export class CaptureContext {
             event.type === 'tool-output-available' ||
             event.type === 'tool-output-error'
           ) {
+            const screenshot = this.takePendingScreenshot()
             await this.messageLogger.logStreamEvent(
               event,
-              this.pendingScreenshot ?? undefined,
+              screenshot,
             )
             this.onEvent?.(this.taskId, {
               ...event,
-              screenshot: this.pendingScreenshot,
+              ...(screenshot !== undefined && { screenshot }),
             } as Record<string, unknown>)
-            this.pendingScreenshot = null
           } else {
             await this.messageLogger.logStreamEvent(event)
             this.onEvent?.(this.taskId, event as Record<string, unknown>)

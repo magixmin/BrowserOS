@@ -166,6 +166,41 @@ export interface BrowserOpsPreviewResult {
   engine: 'browser-ops-v1'
 }
 
+export interface BrowserOpsSkillCandidate {
+  skillId: string
+  reason: string
+  exists: boolean
+  builtIn?: boolean
+  name?: string
+  description?: string
+}
+
+export interface BrowserOpsSkillResolution {
+  taskSkillKey: string
+  normalizedSkillKey: string
+  matchType: 'direct' | 'mapped' | 'missing'
+  resolvedSkillId: string | null
+  resolvedSkillName?: string
+  builtIn?: boolean
+  notes: string[]
+  candidates: BrowserOpsSkillCandidate[]
+}
+
+export interface BrowserOpsAutomationBrief {
+  profileId: string
+  taskId: string
+  readiness: 'ready' | 'needs-setup'
+  recommendedStartUrl: string
+  launchMode: 'attached-current-window' | 'managed-window'
+  resolvedSkillId: string | null
+  resolvedSkillName?: string
+  routePreview: BrowserOpsPreviewResult
+  skillResolution: BrowserOpsSkillResolution
+  missingRequirements: string[]
+  notes: string[]
+  executionPrompt: string
+}
+
 export interface BrowserOpsRouteAllocation {
   allocationId: string
   profileId: string
@@ -258,7 +293,21 @@ export interface BrowserOpsLaunchBundle {
   proxy: {
     providerName: string
     maskedUrl: string
+    serverArg: string | null
     authMode: string
+    credentialSource:
+      | 'embedded'
+      | 'env'
+      | 'managed-internal'
+      | 'none'
+    credentialEnv: {
+      username?: string
+      password?: string
+    } | null
+    credentialStatus: 'configured' | 'missing' | 'not-required'
+    missingCredentialEnv: string[]
+    usernameTemplate?: string
+    passwordRequired: boolean
     sessionId: string | null
   } | null
 }
@@ -391,12 +440,20 @@ export interface BrowserOpsProviderRouteResolution {
   endpointHost: string
   endpointPort: number | null
   endpointScheme: 'http' | 'https' | 'socks5' | 'unknown'
+  proxyServerArg: string | null
   authMode:
     | 'embedded-credentials'
     | 'basic-auth'
     | 'provider-template'
     | 'managed-internal'
     | 'none'
+  credentialSource: 'embedded' | 'env' | 'managed-internal' | 'none'
+  credentialEnv: {
+    username?: string
+    password?: string
+  } | null
+  credentialStatus: 'configured' | 'missing' | 'not-required'
+  missingCredentialEnv: string[]
   proxyUrlMasked: string
   sessionId: string | null
   country: string

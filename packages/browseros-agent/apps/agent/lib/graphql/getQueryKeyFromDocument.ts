@@ -1,5 +1,6 @@
 import { parse } from 'graphql'
 import type { TypedDocumentString } from '@/generated/graphql/graphql'
+import type { GraphqlVariablesInput } from './types'
 
 const getOperationName = <T, V>(
   doc: TypedDocumentString<T, V>,
@@ -15,8 +16,7 @@ const getOperationName = <T, V>(
 
 export const getQueryKeyFromDocument = <
   TResult,
-  // biome-ignore lint/suspicious/noExplicitAny: TODO(dani) type GraphQL variables properly
-  TVariables extends Record<string, any> | undefined = undefined,
+  TVariables extends GraphqlVariablesInput = undefined,
 >(
   doc: TypedDocumentString<TResult, TVariables>,
 ) => {

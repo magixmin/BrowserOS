@@ -1,7 +1,11 @@
 import type { TypedDocumentString } from '@/generated/graphql/graphql'
 import { env } from '../env'
+import type { GraphqlVariablesInput } from './types'
 
-export async function execute<TResult, TVariables = undefined>(
+export async function execute<
+  TResult,
+  TVariables extends GraphqlVariablesInput = undefined,
+>(
   query: TypedDocumentString<TResult, TVariables>,
   variables?: TVariables,
 ): Promise<TResult> {

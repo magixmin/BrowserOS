@@ -81,6 +81,60 @@ export class BrowserOpsRuntimeLauncherService
     return { cdp, server, extension }
   }
 
+  private getProxyCredentialStatus(bundle: BrowserOpsLaunchBundle): {
+    requiredEnvVars: string[]
+    missingEnvVars: string[]
+    notes: string[]
+  } {
+    const proxy = bundle.proxy
+    if (!proxy) {
+      return { requiredEnvVars: [], missingEnvVars: [], notes: [] }
+    }
+
+    if (proxy.credentialSource === 'embedded') {
+      return {
+        requiredEnvVars: [],
+        missingEnvVars: [],
+        notes: ['Proxy credentials are expected to be embedded in the source endpoint.'],
+      }
+    }
+
+    if (proxy.credentialSource === 'managed-internal') {
+      return {
+        requiredEnvVars: [],
+        missingEnvVars: [],
+        notes: ['Proxy credentials are expected to be managed internally.'],
+      }
+    }
+
+    if (proxy.credentialSource !== 'env' || !proxy.credentialEnv) {
+      return { requiredEnvVars: [], missingEnvVars: [], notes: [] }
+    }
+
+    const requiredEnvVars = [
+      proxy.credentialEnv.username,
+      proxy.credentialEnv.password,
+    ].filter((value): value is string => typeof value === 'string' && value.length > 0)
+
+    const missingEnvVars = requiredEnvVars.filter(
+      (envName) => !process.env[envName],
+    )
+
+    const notes =
+      requiredEnvVars.length > 0
+        ? [
+            `Proxy credentials should be supplied via env: ${requiredEnvVars.join(', ')}.`,
+            ...(missingEnvVars.length > 0
+              ? [
+                  `Missing required proxy credential env vars: ${missingEnvVars.join(', ')}.`,
+                ]
+              : ['All required proxy credential env vars are present.']),
+          ]
+        : []
+
+    return { requiredEnvVars, missingEnvVars, notes }
+  }
+
   async listExecutions(): Promise<BrowserOpsLaunchExecution[]> {
     const persisted = await this.persistence.listLaunchExecutions()
     const merged = new Map<string, BrowserOpsLaunchExecution>()
@@ -141,6 +195,7 @@ export class BrowserOpsRuntimeLauncherService
     const executionId = crypto.randomUUID()
     const ports = await this.allocatePorts()
     const commandPreview = `${bundle.launcherCommandPreview} --remote-debugging-port=${ports.cdp} --browseros-mcp-port=${ports.server} --browseros-extension-port=${ports.extension}`
+    const credentialStatus = this.getProxyCredentialStatus(bundle)
 
     if (!execute) {
       const prepared: BrowserOpsLaunchExecution = {
@@ -155,7 +210,10 @@ export class BrowserOpsRuntimeLauncherService
         dryRun: true,
         pid: null,
         ports,
-        notes: ['Prepared launch bundle without starting a browser process.'],
+        notes: [
+          'Prepared launch bundle without starting a browser process.',
+          ...credentialStatus.notes,
+        ],
       }
       this.executions.set(executionId, prepared)
       await this.persistence.writeLaunchExecution(prepared)
@@ -176,6 +234,26 @@ export class BrowserOpsRuntimeLauncherService
         pid: null,
         ports,
         notes: ['BROWSEROS_BINARY is not configured.'],
+      }
+      this.executions.set(executionId, failed)
+      await this.persistence.writeLaunchExecution(failed)
+      return failed
+    }
+
+    if (credentialStatus.missingEnvVars.length > 0) {
+      const failed: BrowserOpsLaunchExecution = {
+        executionId,
+        bundleId: bundle.bundleId,
+        specId: bundle.specId,
+        profileId: bundle.profileId,
+        createdAt: new Date().toISOString(),
+        state: 'failed',
+        binaryPath,
+        commandPreview,
+        dryRun: false,
+        pid: null,
+        ports,
+        notes: credentialStatus.notes,
       }
       this.executions.set(executionId, failed)
       await this.persistence.writeLaunchExecution(failed)
@@ -214,7 +292,10 @@ export class BrowserOpsRuntimeLauncherService
         dryRun: false,
         pid: child.pid ?? null,
         ports,
-        notes: ['Spawned BrowserOS process from launch bundle.'],
+        notes: [
+          'Spawned BrowserOS process from launch bundle.',
+          ...credentialStatus.notes,
+        ],
       }
 
       this.executions.set(executionId, launched)

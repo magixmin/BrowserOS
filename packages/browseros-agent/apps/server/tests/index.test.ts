@@ -3,105 +3,132 @@
  * Copyright 2025 BrowserOS
  */
 
-import { describe, it } from 'bun:test'
+import { afterAll, beforeAll, describe, it } from 'bun:test'
 import assert from 'node:assert'
-import fs from 'node:fs'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
-import { executablePath } from 'puppeteer'
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import { Hono } from 'hono'
+import type { Browser, PageInfo } from '../src/browser/browser'
+import { createMcpRoutes } from '../src/api/routes/mcp'
+import { registry } from '../src/tools/registry'
 
-// TODO: Re-enable after Phase 4 (HTTP Server) implementation
-// This test uses old CLI args (--headless, --isolated, --executable-path)
-// which were removed in Phase 1. Need to update for new architecture:
-// - Start browser with CDP on specific port
-// - Start MCP server with --cdp-port and --mcp-port
-// - Test via HTTP/SSE transport instead of STDIO
-describe.skip('e2e', () => {
-  async function withClient(cb: (client: Client) => Promise<void>) {
-    const transport = new StdioClientTransport({
-      command: 'node',
-      args: [
-        'build/src/index.js',
-        '--headless',
-        '--isolated',
-        '--executable-path',
-        executablePath(),
-      ],
-    })
-    const client = new Client(
-      {
-        name: 'e2e-test',
-        version: '1.0.0',
-      },
-      {
-        capabilities: {},
-      },
+function createBrowserStub(): Browser {
+  const pages: PageInfo[] = [
+    {
+      pageId: 1,
+      targetId: 'target-1',
+      tabId: 101,
+      url: 'about:blank',
+      title: 'Blank',
+      isActive: true,
+      isLoading: false,
+      loadProgress: 100,
+      isPinned: false,
+      isHidden: false,
+      windowId: 1,
+      index: 0,
+    },
+  ]
+
+  return {
+    listPages: async () => pages,
+    isCdpConnected: () => true,
+    getTabIdForPage: (pageId: number) =>
+      pages.find((page) => page.pageId === pageId)?.tabId,
+  } as unknown as Browser
+}
+
+function textOf(result: { content: { type: string; text?: string }[] }): string {
+  return result.content
+    .filter((item) => item.type === 'text')
+    .map((item) => item.text ?? '')
+    .join('\n')
+}
+
+let server: Bun.Server | null = null
+let client: Client | null = null
+let transport: StreamableHTTPClientTransport | null = null
+
+describe('mcp route smoke tests', () => {
+  beforeAll(async () => {
+    const app = new Hono().route(
+      '/mcp',
+      createMcpRoutes({
+        version: 'test',
+        registry,
+        browser: createBrowserStub(),
+        executionDir: '/tmp/browseros-test-execution',
+        resourcesDir: '/tmp/browseros-test-resources',
+        klavisProxy: null,
+      }),
     )
 
-    try {
-      await client.connect(transport)
-      await cb(client)
-    } finally {
-      await client.close()
+    server = Bun.serve({
+      port: 0,
+      fetch: app.fetch,
+    })
+
+    transport = new StreamableHTTPClientTransport(
+      new URL(`http://127.0.0.1:${server.port}/mcp`),
+    )
+    client = new Client({
+      name: 'browseros-mcp-smoke-test',
+      version: '1.0.0',
+    })
+
+    await client.connect(transport)
+  })
+
+  afterAll(async () => {
+    if (transport) {
+      await transport.close()
+      transport = null
     }
-  }
-  it('calls a tool', async () => {
-    await withClient(async (client) => {
-      const result = await client.callTool({
-        name: 'list_pages',
-        arguments: {},
-      })
-      assert.deepStrictEqual(result, {
-        content: [
-          {
-            type: 'text',
-            text: '# list_pages response\n## Pages\n0: about:blank [selected]',
-          },
-        ],
-      })
-    })
+    client = null
+    server?.stop(true)
+    server = null
   })
 
-  it('calls a tool multiple times', async () => {
-    await withClient(async (client) => {
-      let result = await client.callTool({
-        name: 'list_pages',
-        arguments: {},
-      })
-      result = await client.callTool({
-        name: 'list_pages',
-        arguments: {},
-      })
-      assert.deepStrictEqual(result, {
-        content: [
-          {
-            type: 'text',
-            text: '# list_pages response\n## Pages\n0: about:blank [selected]',
-          },
-        ],
-      })
+  it('calls list_pages successfully', async () => {
+    assert.ok(client, 'MCP client should be connected')
+
+    const result = await client.callTool({
+      name: 'list_pages',
+      arguments: {},
     })
+
+    assert.ok(!result.isError, textOf(result))
+    assert.ok(result.structuredContent, 'Expected structured content')
+    assert.ok(
+      textOf(result).includes('about:blank'),
+      'Expected page URL in MCP response',
+    )
   })
 
-  it('has all tools', async () => {
-    await withClient(async (client) => {
-      const { tools } = await client.listTools()
-      const exposedNames = tools.map((t) => t.name).sort()
-      const files = fs.readdirSync('build/src/tools')
-      const definedNames = []
-      for (const file of files) {
-        if (file === 'ToolDefinition.js') {
-          continue
-        }
-        const fileTools = await import(`../src/tools/${file}`)
-        for (const maybeTool of Object.values<object>(fileTools)) {
-          if ('name' in maybeTool) {
-            definedNames.push(maybeTool.name)
-          }
-        }
-      }
-      definedNames.sort()
-      assert.deepStrictEqual(exposedNames, definedNames)
+  it('calls list_pages multiple times without conflicts', async () => {
+    assert.ok(client, 'MCP client should be connected')
+
+    const first = await client.callTool({
+      name: 'list_pages',
+      arguments: {},
     })
+    const second = await client.callTool({
+      name: 'list_pages',
+      arguments: {},
+    })
+
+    assert.ok(!first.isError, textOf(first))
+    assert.ok(!second.isError, textOf(second))
+    assert.ok(second.structuredContent, 'Expected repeated call to succeed')
+  })
+
+  it('exposes the full local registry tool set', async () => {
+    assert.ok(client, 'MCP client should be connected')
+
+    const { tools } = await client.listTools()
+    const exposedNames = tools.map((tool) => tool.name).sort()
+    const definedNames = registry.names().slice().sort()
+
+    assert.deepStrictEqual(exposedNames, definedNames)
   })
 })

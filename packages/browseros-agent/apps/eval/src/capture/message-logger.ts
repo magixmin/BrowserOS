@@ -42,6 +42,13 @@ export class MessageLogger {
     await this.append(message)
   }
 
+  async logAssistantText(content: string): Promise<void> {
+    const id = crypto.randomUUID()
+    await this.logStreamEvent({ type: 'text-start', id })
+    await this.logStreamEvent({ type: 'text-delta', id, delta: content })
+    await this.logStreamEvent({ type: 'text-end', id })
+  }
+
   getMessages(): Message[] {
     return [...this.messages]
   }

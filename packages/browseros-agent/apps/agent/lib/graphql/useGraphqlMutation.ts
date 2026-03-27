@@ -5,11 +5,15 @@ import {
 } from '@tanstack/react-query'
 import type { TypedDocumentString } from '@/generated/graphql/graphql'
 import { execute } from './execute'
+import type { GraphqlVariablesInput } from './types'
 
 /**
  * @public
  */
-export function useGraphqlMutation<TResult = unknown, TVariables = object>(
+export function useGraphqlMutation<
+  TResult = unknown,
+  TVariables extends GraphqlVariablesInput = undefined,
+>(
   document: TypedDocumentString<TResult, TVariables>,
   options?: Omit<
     UseMutationOptions<TResult, unknown, TVariables>,

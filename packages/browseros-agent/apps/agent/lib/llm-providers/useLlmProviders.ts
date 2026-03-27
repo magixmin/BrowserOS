@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { sentry } from '@/lib/sentry/sentry'
 import {
   createDefaultProvidersConfig,
   DEFAULT_PROVIDER_ID,
@@ -71,8 +72,13 @@ export function useLlmProviders(): UseLlmProvidersReturn {
 
         setProviders(loadedProviders)
         setDefaultProviderId(loadedDefaultId)
-      } catch {
-        // TODO: Record error to error recording service
+      } catch (error) {
+        sentry.captureException(error, {
+          tags: {
+            area: 'llm-providers',
+            action: 'load-initial-data',
+          },
+        })
       } finally {
         setIsLoading(false)
       }

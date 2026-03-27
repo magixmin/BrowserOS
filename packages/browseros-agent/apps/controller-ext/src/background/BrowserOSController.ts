@@ -14,6 +14,7 @@ import { RemoveBookmarkTreeAction } from '@/actions/bookmark/RemoveBookmarkTreeA
 import { UpdateBookmarkAction } from '@/actions/bookmark/UpdateBookmarkAction'
 import { CaptureScreenshotAction } from '@/actions/browser/CaptureScreenshotAction'
 import { CaptureScreenshotPointerAction } from '@/actions/browser/CaptureScreenshotPointerAction'
+import { ClearProxyAuthRuleAction } from '@/actions/browser/ClearProxyAuthRuleAction'
 import { ClearAction } from '@/actions/browser/ClearAction'
 import { ClickAction } from '@/actions/browser/ClickAction'
 import { ClickCoordinatesAction } from '@/actions/browser/ClickCoordinatesAction'
@@ -25,6 +26,7 @@ import { GetInteractiveSnapshotAction } from '@/actions/browser/GetInteractiveSn
 import { GetPageLoadStatusAction } from '@/actions/browser/GetPageLoadStatusAction'
 import { GetSnapshotAction } from '@/actions/browser/GetSnapshotAction'
 import { InputTextAction } from '@/actions/browser/InputTextAction'
+import { SetProxyAuthRuleAction } from '@/actions/browser/SetProxyAuthRuleAction'
 import { ScrollDownAction } from '@/actions/browser/ScrollDownAction'
 import { ScrollToNodeAction } from '@/actions/browser/ScrollToNodeAction'
 import { ScrollUpAction } from '@/actions/browser/ScrollUpAction'
@@ -250,6 +252,11 @@ export class BrowserOSController {
     this.actionRegistry.register(
       'executeJavaScript',
       new ExecuteJavaScriptAction(),
+    )
+    this.actionRegistry.register('setProxyAuthRule', new SetProxyAuthRuleAction())
+    this.actionRegistry.register(
+      'clearProxyAuthRule',
+      new ClearProxyAuthRuleAction(),
     )
     this.actionRegistry.register('sendKeys', new SendKeysAction())
     this.actionRegistry.register(

@@ -258,16 +258,39 @@ export class BrowserOpsRuntimePersistenceService
         ? {
             providerName: spec.proxyResolution.providerName,
             maskedUrl: spec.proxyResolution.proxyUrlMasked,
+            serverArg: spec.proxyResolution.proxyServerArg,
             authMode: spec.proxyResolution.authMode,
+            credentialSource: spec.proxyResolution.credentialSource,
+            credentialEnv: spec.proxyResolution.credentialEnv,
+            credentialStatus: spec.proxyResolution.credentialStatus,
+            missingCredentialEnv: spec.proxyResolution.missingCredentialEnv,
+            usernameTemplate: spec.proxyResolution.usernameTemplate,
+            passwordRequired: spec.proxyResolution.passwordRequired,
             sessionId: spec.proxyResolution.sessionId,
           }
         : null,
     }
 
-    if (spec.proxyResolution?.proxyUrlMasked) {
+    if (spec.proxyResolution?.proxyServerArg) {
       bundle.chromiumArgs.push(
-        `--proxy-server=${spec.proxyResolution.proxyUrlMasked}`,
+        `--proxy-server=${spec.proxyResolution.proxyServerArg}`,
       )
+      bundle.env.BROWSER_OPS_PROXY_SERVER = spec.proxyResolution.proxyServerArg
+      bundle.env.BROWSER_OPS_PROXY_AUTH_MODE = spec.proxyResolution.authMode
+      bundle.env.BROWSER_OPS_PROXY_CREDENTIAL_SOURCE =
+        spec.proxyResolution.credentialSource
+      if (spec.proxyResolution.usernameTemplate) {
+        bundle.env.BROWSER_OPS_PROXY_USERNAME_TEMPLATE =
+          spec.proxyResolution.usernameTemplate
+      }
+      if (spec.proxyResolution.credentialEnv?.username) {
+        bundle.env.BROWSER_OPS_PROXY_USERNAME_ENV =
+          spec.proxyResolution.credentialEnv.username
+      }
+      if (spec.proxyResolution.credentialEnv?.password) {
+        bundle.env.BROWSER_OPS_PROXY_PASSWORD_ENV =
+          spec.proxyResolution.credentialEnv.password
+      }
     }
 
     const envAssignments = Object.entries(bundle.env)

@@ -23,6 +23,9 @@ import {
   BrowserOpsRuntimePersistenceService,
 } from '../services/browser-ops/runtime-store'
 import {
+  buildBrowserOpsAutomationBrief,
+} from '../services/browser-ops/automation'
+import {
   BrowserOpsBindAllocationSchema,
   BrowserOpsCleanupInstancesSchema,
   BrowserOpsCookieVaultBindingSchema,
@@ -39,8 +42,10 @@ import {
   BrowserOpsReleaseAllocationSchema,
   BrowserOpsRestartInstanceSchema,
   BrowserOpsStopLaunchExecutionSchema,
+  BrowserOpsTaskTemplateSchema,
   BrowserOpsUnbindRuntimeSchema,
 } from '../services/browser-ops/schemas'
+import { resolveBrowserOpsSkill } from '../services/browser-ops/skills'
 import { BrowserOpsService } from '../services/browser-ops/service'
 
 interface BrowserOpsRouteDeps {
@@ -84,12 +89,49 @@ export function createBrowserOpsRoutes(deps: BrowserOpsRouteDeps) {
     deps.runtimeInstanceEventStore ??
     new BrowserOpsRuntimeInstanceEventStoreService()
 
+  async function pushProxyAuthRule(bindingId: string): Promise<void> {
+    if (!controller.isConnected()) return
+    const rule = service.resolveProxyAuthRule(bindingId)
+    if (!rule) return
+    await controller.send(
+      'setProxyAuthRule',
+      rule as unknown as Record<string, unknown>,
+    )
+  }
+
+  async function clearProxyAuthRule(bindingId: string): Promise<void> {
+    if (!controller.isConnected()) return
+    await controller.send('clearProxyAuthRule', { ruleId: bindingId })
+  }
+
   return new Hono()
     .get('/providers', async (c) => {
       return c.json({
         providers: service.listProviders(),
       })
     })
+    .post(
+      '/skills/resolve',
+      zValidator('json', BrowserOpsTaskTemplateSchema),
+      async (c) => {
+        const request = c.req.valid('json')
+        const resolution = await resolveBrowserOpsSkill(request)
+        return c.json({ resolution })
+      },
+    )
+    .post(
+      '/automation/brief',
+      zValidator('json', BrowserOpsPreviewRequestSchema),
+      async (c) => {
+        const request = c.req.valid('json')
+        const routePreview = service.previewRoute(request)
+        const brief = await buildBrowserOpsAutomationBrief(
+          request,
+          routePreview,
+        )
+        return c.json({ brief })
+      },
+    )
     .get('/allocations', async (c) => {
       return c.json({
         allocations: service.listAllocations(),
@@ -666,6 +708,8 @@ export function createBrowserOpsRoutes(deps: BrowserOpsRouteDeps) {
           ? await runtimePersistence.materializeLaunchBundle(spec.specId)
           : null
 
+        await pushProxyAuthRule(binding.bindingId)
+
         return c.json({ binding, asset, bundle }, 201)
       },
     )
@@ -749,6 +793,8 @@ export function createBrowserOpsRoutes(deps: BrowserOpsRouteDeps) {
             page
         }
 
+        await pushProxyAuthRule(binding.bindingId)
+
         return c.json(
           { window, page, binding, asset, bundle, restoredCookies },
           201,
@@ -774,6 +820,7 @@ export function createBrowserOpsRoutes(deps: BrowserOpsRouteDeps) {
         if (currentSpec?.browserContextId) {
           await browser.disposeBrowserContext(currentSpec.browserContextId)
         }
+        await clearProxyAuthRule(binding.bindingId)
         if (currentSpec) {
           const stoppedExecutions =
             await runtimeLauncher.stopExecutionsForSpecs([currentSpec.specId])
@@ -901,6 +948,9 @@ export function createBrowserOpsRoutes(deps: BrowserOpsRouteDeps) {
 
         for (const browserContextId of browserContextIds) {
           await browser.disposeBrowserContext(browserContextId)
+        }
+        for (const binding of relatedBindings) {
+          await clearProxyAuthRule(binding.bindingId)
         }
         if (relatedSpecIds.length > 0) {
           const stoppedExecutions =

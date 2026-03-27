@@ -41,6 +41,37 @@ function createBundle(): BrowserOpsLaunchBundle {
   }
 }
 
+function createBundleWithEnvProxy(): BrowserOpsLaunchBundle {
+  return {
+    ...createBundle(),
+    proxy: {
+      providerName: 'Decodo',
+      maskedUrl: 'gate.decodo.com:10000',
+      serverArg: 'gate.decodo.com:10000',
+      authMode: 'provider-template',
+      credentialSource: 'env',
+      credentialEnv: {
+        username: 'BROWSER_OPS_DECODO_USERNAME',
+        password: 'BROWSER_OPS_DECODO_PASSWORD',
+      },
+      usernameTemplate: 'user-<account>-country-us-session-abc123',
+      passwordRequired: true,
+      sessionId: 'abc123',
+    },
+    chromiumArgs: ['--proxy-server=gate.decodo.com:10000'],
+    env: {
+      ...createBundle().env,
+      BROWSER_OPS_PROXY_SERVER: 'gate.decodo.com:10000',
+      BROWSER_OPS_PROXY_AUTH_MODE: 'provider-template',
+      BROWSER_OPS_PROXY_CREDENTIAL_SOURCE: 'env',
+      BROWSER_OPS_PROXY_USERNAME_ENV: 'BROWSER_OPS_DECODO_USERNAME',
+      BROWSER_OPS_PROXY_PASSWORD_ENV: 'BROWSER_OPS_DECODO_PASSWORD',
+      BROWSER_OPS_PROXY_USERNAME_TEMPLATE:
+        'user-<account>-country-us-session-abc123',
+    },
+  }
+}
+
 class MemoryLauncherPersistence
   implements BrowserOpsRuntimeLauncherPersistence
 {
@@ -108,6 +139,49 @@ describe('BrowserOpsRuntimeLauncherService', () => {
     assert.strictEqual(execution.state, 'failed')
     assert.strictEqual(execution.pid, null)
     assert.ok(execution.ports.server > 0)
+  })
+
+  it('records missing proxy credential env vars during dry-run preparation', async () => {
+    delete process.env.BROWSER_OPS_DECODO_USERNAME
+    delete process.env.BROWSER_OPS_DECODO_PASSWORD
+
+    const persistence = new MemoryLauncherPersistence()
+    const service = new BrowserOpsRuntimeLauncherService(persistence)
+
+    const execution = await service.launchBundle(createBundleWithEnvProxy(), {
+      execute: false,
+    })
+
+    assert.strictEqual(execution.state, 'prepared')
+    assert.ok(
+      execution.notes.some((note) =>
+        note.includes('Missing required proxy credential env vars'),
+      ),
+    )
+  })
+
+  it('fails execute=true launch when required proxy credential env vars are missing', async () => {
+    const scriptPath = join(tempDir, 'fake-browser.sh')
+    await writeFile(scriptPath, '#!/usr/bin/env bash\nsleep 30\n')
+    await chmod(scriptPath, 0o755)
+    process.env.BROWSEROS_BINARY = scriptPath
+    delete process.env.BROWSER_OPS_DECODO_USERNAME
+    delete process.env.BROWSER_OPS_DECODO_PASSWORD
+
+    const persistence = new MemoryLauncherPersistence()
+    const service = new BrowserOpsRuntimeLauncherService(persistence)
+
+    const execution = await service.launchBundle(createBundleWithEnvProxy(), {
+      execute: true,
+    })
+
+    assert.strictEqual(execution.state, 'failed')
+    assert.strictEqual(execution.pid, null)
+    assert.ok(
+      execution.notes.some((note) =>
+        note.includes('Missing required proxy credential env vars'),
+      ),
+    )
   })
 
   it('launches and stops a process when binary is configured', async () => {

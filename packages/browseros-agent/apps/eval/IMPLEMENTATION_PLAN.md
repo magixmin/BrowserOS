@@ -1,5 +1,7 @@
 # Eval System - Production Grade Implementation Plan
 
+> 当前执行中的未完成项与验证状态快照统一记录在仓库根目录 `UNFINISHED_TASKS.md`。
+
 ## Overview
 
 This plan outlines the changes needed to make the eval system production-grade with uniform agent observation across all agent patterns (single-agent, orchestrator-executor, future patterns).
@@ -859,18 +861,24 @@ export class Orchestrator {
 
 ## Testing Checklist
 
-- [ ] Single-agent eval still works (regression test)
-- [ ] Orchestrator-executor produces screenshots in output folder
-- [ ] Orchestrator-executor produces messages.jsonl with:
-  - [ ] user message
-  - [ ] delegation messages
-  - [ ] tool_call messages (from executor)
-  - [ ] tool_result messages with screenshot numbers
-  - [ ] delegation_result messages
-  - [ ] assistant message (final answer)
-- [ ] Graders pass with orchestrator-executor (no "no_screenshots" error)
-- [ ] metadata.json has accurate `total_steps` count
-- [ ] Error/warning capture works for both patterns
+- [x] Single-agent eval still works (regression test)
+- [x] Orchestrator-executor produces screenshots in output folder
+- [x] Orchestrator-executor produces messages.jsonl with:
+  - [x] user message
+  - [x] delegation flow recorded via `delegate` tool input/output events
+  - [x] executor tool call stream events
+  - [x] executor tool result events with screenshot numbers
+  - [x] assistant message (final answer)
+- [x] Graders pass with orchestrator-executor (no "no_screenshots" error)
+- [x] metadata.json has accurate `total_steps` count
+- [x] Error/warning capture works for both patterns
+
+Automated verification added in this round:
+
+- `tests/single-agent-evaluator.test.ts`
+- `tests/orchestrator-executor-evaluator.test.ts`
+- `tests/with-eval-timeout.test.ts`
+- `tests/task-executor-graders.test.ts`
 
 ---
 

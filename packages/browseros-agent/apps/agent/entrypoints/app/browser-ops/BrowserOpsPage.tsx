@@ -44,10 +44,12 @@ import {
   type BrowserOpsPreviewResult,
   type BrowserOpsProviderCatalogEntry,
   type BrowserOpsRouteAllocation,
+  type BrowserOpsAutomationBrief,
   type BrowserOpsRuntimeAssetManifest,
   type BrowserOpsRuntimeBinding,
   type BrowserOpsRuntimeDiagnostics,
   type BrowserOpsRuntimeSessionSpec,
+  type BrowserOpsSkillResolution,
   getCountryPreset,
   getPlatformLabel,
   getProxySourceLabel,
@@ -103,6 +105,16 @@ export const BrowserOpsPage: FC = () => {
   const [selectedTaskId, setSelectedTaskId] = useState<string>('')
   const [serverPreview, setServerPreview] =
     useState<BrowserOpsPreviewResult | null>(null)
+  const [automationBrief, setAutomationBrief] =
+    useState<BrowserOpsAutomationBrief | null>(null)
+  const [automationBriefError, setAutomationBriefError] = useState<
+    string | null
+  >(null)
+  const [skillResolution, setSkillResolution] =
+    useState<BrowserOpsSkillResolution | null>(null)
+  const [skillResolutionError, setSkillResolutionError] = useState<
+    string | null
+  >(null)
   const [serverPreviewPending, setServerPreviewPending] = useState(false)
   const [serverPreviewError, setServerPreviewError] = useState<string | null>(
     null,
@@ -211,6 +223,99 @@ export const BrowserOpsPage: FC = () => {
   const routeDecision = serverPreview?.decision ?? localRouteDecision
   const matchedProvider = serverPreview?.matchedProvider ?? null
   const routeResolution = serverPreview?.routeResolution ?? null
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadSkillResolution() {
+      if (!selectedTask) {
+        setSkillResolution(null)
+        setSkillResolutionError(null)
+        return
+      }
+
+      try {
+        const response = await rpcClient['browser-ops'].skills.resolve.$post({
+          json: selectedTask,
+        })
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        const result = (await response.json()) as {
+          resolution: BrowserOpsSkillResolution
+        }
+        if (!cancelled) {
+          setSkillResolution(result.resolution)
+          setSkillResolutionError(null)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setSkillResolution(null)
+          setSkillResolutionError(
+            error instanceof Error
+              ? error.message
+              : 'Failed to resolve Browser Ops skill',
+          )
+        }
+      }
+    }
+
+    void loadSkillResolution()
+
+    return () => {
+      cancelled = true
+    }
+  }, [rpcClient, selectedTask])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadAutomationBrief() {
+      if (!selectedProfile || !selectedTask) {
+        setAutomationBrief(null)
+        setAutomationBriefError(null)
+        return
+      }
+
+      try {
+        const response = await rpcClient['browser-ops'].automation.brief.$post({
+          json: {
+            profile: selectedProfile,
+            task: selectedTask,
+            proxies: workspace.proxies,
+            settings: workspace.settings,
+          },
+        })
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        const result = (await response.json()) as {
+          brief: BrowserOpsAutomationBrief
+        }
+        if (!cancelled) {
+          setAutomationBrief(result.brief)
+          setAutomationBriefError(null)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setAutomationBrief(null)
+          setAutomationBriefError(
+            error instanceof Error
+              ? error.message
+              : 'Failed to build automation brief',
+          )
+        }
+      }
+    }
+
+    void loadAutomationBrief()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    rpcClient,
+    selectedProfile,
+    selectedTask,
+    workspace.proxies,
+    workspace.settings,
+  ])
 
   const refreshRuntimeSessionSpecs = useCallback(async () => {
     const response = await rpcClient['browser-ops'].runtime.specs.$get()
@@ -2094,10 +2199,56 @@ export const BrowserOpsPage: FC = () => {
                         value={routeResolution.proxyUrlMasked}
                       />
                       <MiniInfo
+                        label="Proxy Server Arg"
+                        value={routeResolution.proxyServerArg ?? 'n/a'}
+                      />
+                      <MiniInfo
+                        label="Credential Source"
+                        value={routeResolution.credentialSource}
+                      />
+                      <MiniInfo
+                        label="Credential Status"
+                        value={routeResolution.credentialStatus}
+                      />
+                      <MiniInfo
+                        label="Username Template"
+                        value={routeResolution.usernameTemplate ?? 'n/a'}
+                      />
+                      <MiniInfo
+                        label="Password Required"
+                        value={routeResolution.passwordRequired ? 'yes' : 'no'}
+                      />
+                      <MiniInfo
                         label="Session"
                         value={routeResolution.sessionId ?? 'rotate'}
                       />
                     </div>
+                    {routeResolution.credentialEnv ? (
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <MiniInfo
+                          label="Username Env"
+                          value={routeResolution.credentialEnv.username ?? 'n/a'}
+                        />
+                        <MiniInfo
+                          label="Password Env"
+                          value={routeResolution.credentialEnv.password ?? 'n/a'}
+                        />
+                      </div>
+                    ) : null}
+                    {routeResolution.missingCredentialEnv.length ? (
+                      <div className="space-y-2">
+                        {routeResolution.missingCredentialEnv.map(
+                          (envName: string) => (
+                            <div
+                              key={envName}
+                              className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-amber-700 text-sm dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300"
+                            >
+                              Missing credential env: {envName}
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    ) : null}
                     <div className="space-y-2">
                       {routeResolution.notes.map((note: string) => (
                         <div
@@ -2122,6 +2273,154 @@ export const BrowserOpsPage: FC = () => {
                     ) : null}
                   </div>
                 ) : null}
+
+                <div className="space-y-2">
+                  <div className="font-medium text-sm">
+                    Automation Skill Resolution
+                  </div>
+                  {skillResolutionError ? (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-amber-700 text-sm dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300">
+                      Failed to resolve skill: {skillResolutionError}
+                    </div>
+                  ) : skillResolution ? (
+                    <div className="space-y-3">
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <MiniInfo
+                          label="Task Skill Key"
+                          value={skillResolution.taskSkillKey}
+                        />
+                        <MiniInfo
+                          label="Match Type"
+                          value={skillResolution.matchType}
+                        />
+                        <MiniInfo
+                          label="Resolved Skill"
+                          value={skillResolution.resolvedSkillId ?? 'None'}
+                        />
+                        <MiniInfo
+                          label="Skill Name"
+                          value={skillResolution.resolvedSkillName ?? 'n/a'}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        {skillResolution.notes.map((note: string) => (
+                          <div
+                            key={note}
+                            className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-sm"
+                          >
+                            {note}
+                          </div>
+                        ))}
+                      </div>
+                      {skillResolution.candidates.length ? (
+                        <div className="space-y-2">
+                          {skillResolution.candidates.map((candidate: {
+                            skillId: string
+                            reason: string
+                            exists: boolean
+                            builtIn?: boolean
+                            description?: string
+                          }) => (
+                            <div
+                              key={`${candidate.skillId}-${candidate.reason}`}
+                              className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2"
+                            >
+                              <div className="flex flex-wrap items-center gap-2">
+                                <div className="font-medium text-sm">
+                                  {candidate.skillId}
+                                </div>
+                                <Badge variant="outline">
+                                  {candidate.exists ? 'Available' : 'Missing'}
+                                </Badge>
+                                {candidate.builtIn ? (
+                                  <Badge variant="outline">Built-in</Badge>
+                                ) : null}
+                              </div>
+                              <div className="mt-1 text-muted-foreground text-sm">
+                                {candidate.reason}
+                              </div>
+                              {candidate.description ? (
+                                <div className="mt-1 text-sm">
+                                  {candidate.description}
+                                </div>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                      Select a task to resolve its automation skill bridge.
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <div className="font-medium text-sm">Automation Brief</div>
+                  {automationBriefError ? (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-amber-700 text-sm dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300">
+                      Failed to build automation brief: {automationBriefError}
+                    </div>
+                  ) : automationBrief ? (
+                    <div className="space-y-3">
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <MiniInfo
+                          label="Readiness"
+                          value={automationBrief.readiness}
+                        />
+                        <MiniInfo
+                          label="Launch Mode"
+                          value={automationBrief.launchMode}
+                        />
+                        <MiniInfo
+                          label="Recommended Start URL"
+                          value={automationBrief.recommendedStartUrl}
+                        />
+                        <MiniInfo
+                          label="Resolved Skill"
+                          value={automationBrief.resolvedSkillId ?? 'None'}
+                        />
+                      </div>
+                      {automationBrief.missingRequirements.length ? (
+                        <div className="space-y-2">
+                          {automationBrief.missingRequirements.map(
+                            (item: string) => (
+                              <div
+                                key={item}
+                                className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-amber-700 text-sm dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300"
+                              >
+                                {item}
+                              </div>
+                            ),
+                          )}
+                        </div>
+                      ) : null}
+                      <div className="space-y-2">
+                        {automationBrief.notes.map((note: string) => (
+                          <div
+                            key={note}
+                            className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-sm"
+                          >
+                            {note}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+                        <div className="mb-2 font-medium text-sm">
+                          Execution Prompt
+                        </div>
+                        <pre className="whitespace-pre-wrap break-words text-sm">
+                          {automationBrief.executionPrompt}
+                        </pre>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                      Select a profile and task to build an automation brief.
+                    </div>
+                  )}
+                </div>
 
                 <div className="space-y-2">
                   <div className="font-medium text-sm">Why this route</div>
@@ -2585,6 +2884,32 @@ export const BrowserOpsPage: FC = () => {
                       value={bundle.proxy?.maskedUrl ?? 'No proxy'}
                     />
                     <MiniInfo
+                      label="Proxy Server Arg"
+                      value={bundle.proxy?.serverArg ?? 'No proxy'}
+                    />
+                    <MiniInfo
+                      label="Credential Source"
+                      value={bundle.proxy?.credentialSource ?? 'n/a'}
+                    />
+                    <MiniInfo
+                      label="Credential Status"
+                      value={bundle.proxy?.credentialStatus ?? 'n/a'}
+                    />
+                    <MiniInfo
+                      label="Username Template"
+                      value={bundle.proxy?.usernameTemplate ?? 'n/a'}
+                    />
+                    <MiniInfo
+                      label="Password Required"
+                      value={
+                        bundle.proxy
+                          ? bundle.proxy.passwordRequired
+                            ? 'yes'
+                            : 'no'
+                          : 'n/a'
+                      }
+                    />
+                    <MiniInfo
                       label="Launcher Script"
                       value={bundle.launcherScriptPath}
                     />
@@ -2593,6 +2918,46 @@ export const BrowserOpsPage: FC = () => {
                       value={bundle.launcherCommandPreview}
                     />
                   </div>
+
+                  {bundle.proxy?.credentialEnv ? (
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <MiniInfo
+                        label="Username Env"
+                        value={bundle.proxy.credentialEnv.username ?? 'n/a'}
+                      />
+                      <MiniInfo
+                        label="Password Env"
+                        value={bundle.proxy.credentialEnv.password ?? 'n/a'}
+                      />
+                    </div>
+                  ) : null}
+                  {bundle.proxy?.missingCredentialEnv.length ? (
+                    <div className="space-y-2">
+                      {bundle.proxy.missingCredentialEnv.map((envName) => (
+                        <div
+                          key={envName}
+                          className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-amber-700 text-sm dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300"
+                        >
+                          Missing credential env: {envName}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {Object.keys(bundle.env).some((key) =>
+                    key.startsWith('BROWSER_OPS_PROXY_'),
+                  ) ? (
+                    <div className="space-y-2">
+                      <div className="font-medium text-sm">Proxy Env</div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {Object.entries(bundle.env)
+                          .filter(([key]) => key.startsWith('BROWSER_OPS_PROXY_'))
+                          .map(([key, value]) => (
+                            <MiniInfo key={key} label={key} value={value} />
+                          ))}
+                      </div>
+                    </div>
+                  ) : null}
 
                   <div className="space-y-2">
                     {bundle.chromiumArgs.map((arg) => (

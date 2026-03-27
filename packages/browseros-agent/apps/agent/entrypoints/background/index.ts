@@ -17,6 +17,7 @@ import {
   setupScheduledJobsSyncToBackend,
   syncScheduledJobs,
 } from '@/lib/schedules/scheduleStorage'
+import { fetchSearchSuggestions } from '@/lib/search-provider/fetchSuggestions'
 import { searchActionsStorage } from '@/lib/search-actions/searchActionsStorage'
 import { selectedTextStorage } from '@/lib/selected-text/selectedTextStorage'
 import { stopAgentStorage } from '@/lib/stop-agent/stop-agent-storage'
@@ -96,6 +97,28 @@ export default defineBackground(() => {
         conversationId: message.conversationId,
         timestamp: Date.now(),
       })
+    }
+
+    if (
+      message?.type === 'get-search-suggestions' &&
+      typeof message.query === 'string' &&
+      typeof message.searchEngine === 'string'
+    ) {
+      void fetchSearchSuggestions(message.searchEngine, message.query)
+        .then((suggestions) => {
+          sendResponse({ suggestions })
+        })
+        .catch((error) => {
+          sendResponse({
+            suggestions: [],
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Failed to fetch search suggestions',
+          })
+        })
+
+      return true
     }
   })
 

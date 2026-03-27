@@ -105,6 +105,11 @@ describe('BrowserOpsService', () => {
   })
 
   it('previews a manual route and matches the provider adapter', () => {
+    const originalUser = process.env.BROWSER_OPS_DECODO_USERNAME
+    const originalPass = process.env.BROWSER_OPS_DECODO_PASSWORD
+    delete process.env.BROWSER_OPS_DECODO_USERNAME
+    delete process.env.BROWSER_OPS_DECODO_PASSWORD
+
     const service = new BrowserOpsService()
     const result = service.previewRoute(createPreviewInput())
 
@@ -117,6 +122,24 @@ describe('BrowserOpsService', () => {
     assert.strictEqual(result.matchedProvider?.id, 'decodo')
     assert.strictEqual(result.routeResolution?.providerId, 'decodo')
     assert.strictEqual(result.routeResolution?.authMode, 'provider-template')
+    assert.strictEqual(
+      result.routeResolution?.proxyServerArg,
+      'gate.decodo.com:10000',
+    )
+    assert.strictEqual(result.routeResolution?.credentialSource, 'env')
+    assert.strictEqual(
+      result.routeResolution?.credentialEnv?.username,
+      'BROWSER_OPS_DECODO_USERNAME',
+    )
+    assert.strictEqual(
+      result.routeResolution?.credentialEnv?.password,
+      'BROWSER_OPS_DECODO_PASSWORD',
+    )
+    assert.strictEqual(result.routeResolution?.credentialStatus, 'missing')
+    assert.deepStrictEqual(result.routeResolution?.missingCredentialEnv, [
+      'BROWSER_OPS_DECODO_USERNAME',
+      'BROWSER_OPS_DECODO_PASSWORD',
+    ])
     assert.ok(
       result.decision.reasons.some((reason) =>
         reason.includes('Provider adapter recognized: Decodo'),
@@ -124,6 +147,53 @@ describe('BrowserOpsService', () => {
     )
     assert.ok(
       result.decision.reasons.some((reason) => reason.includes('Health tier:')),
+    )
+
+    if (originalUser === undefined) delete process.env.BROWSER_OPS_DECODO_USERNAME
+    else process.env.BROWSER_OPS_DECODO_USERNAME = originalUser
+    if (originalPass === undefined) delete process.env.BROWSER_OPS_DECODO_PASSWORD
+    else process.env.BROWSER_OPS_DECODO_PASSWORD = originalPass
+  })
+
+  it('derives a safe proxy server arg from embedded BYO credentials', () => {
+    const service = new BrowserOpsService()
+    const input = createPreviewInput()
+    input.profile.manualProxyId = 'proxy_byo_embedded_01'
+    input.proxies.unshift({
+      id: 'proxy_byo_embedded_01',
+      name: 'BYO Embedded Credentials',
+      sourceType: 'bring-your-own',
+      providerName: 'Custom Provider',
+      endpoint: 'http://user:secret@proxy.example.com:8443',
+      builtInPool: false,
+      ipType: 'residential',
+      sessionMode: 'sticky',
+      countries: ['US'],
+      rotationSupport: false,
+      stickySessionTtlMinutes: 30,
+      status: 'active',
+      health: {
+        successRate: 0.93,
+        banRate: 0.03,
+        latencyMs: 290,
+        lastCheckedAt: new Date().toISOString(),
+      },
+    })
+
+    const result = service.previewRoute(input)
+
+    assert.strictEqual(result.routeResolution?.providerId, 'byo')
+    assert.strictEqual(
+      result.routeResolution?.proxyServerArg,
+      'http://proxy.example.com:8443',
+    )
+    assert.strictEqual(result.routeResolution?.credentialSource, 'embedded')
+    assert.strictEqual(result.routeResolution?.credentialEnv, null)
+    assert.strictEqual(result.routeResolution?.credentialStatus, 'not-required')
+    assert.deepStrictEqual(result.routeResolution?.missingCredentialEnv, [])
+    assert.strictEqual(
+      result.routeResolution?.proxyUrlMasked,
+      'http://user:***@proxy.example.com:8443/',
     )
   })
 

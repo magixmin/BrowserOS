@@ -35,6 +35,13 @@ interface ControllerStub {
   stop(): Promise<void>
   isConnected(): boolean
   send(action: string, payload?: Record<string, unknown>): Promise<unknown>
+  getWindowOwnerClientId(windowId: number): string | null
+  listOwnedWindows(): Array<{
+    clientId: string
+    windowId: number
+    isPrimaryClient: boolean
+    isFocusedWindow: boolean
+  }>
 }
 
 const CONTROLLER_STUB: ControllerStub = {
@@ -42,6 +49,8 @@ const CONTROLLER_STUB: ControllerStub = {
   stop: async () => {},
   isConnected: () => false,
   send: async () => ({}),
+  getWindowOwnerClientId: () => null,
+  listOwnedWindows: () => [],
 }
 
 function extractCdpPort(config: EvalConfig): number {
@@ -175,6 +184,7 @@ export class OrchestratorExecutorEvaluator implements AgentEvaluator {
             const screenshotNum = await capture.screenshot.capture(
               capture.getActivePageId(),
             )
+            capture.queueScreenshot(screenshotNum)
             capture.emitEvent(task.query_id, {
               type: 'screenshot-captured',
               screenshot: screenshotNum,
@@ -198,13 +208,17 @@ export class OrchestratorExecutorEvaluator implements AgentEvaluator {
           }
           if (toolResults) {
             for (const tr of toolResults) {
+              const screenshot = capture.takePendingScreenshot()
               const outputEvent: UIMessageStreamEvent = {
                 type: 'tool-output-available',
                 toolCallId: tr.toolCallId,
                 output: tr.output,
               }
-              await capture.messageLogger.logStreamEvent(outputEvent)
-              capture.emitEvent(task.query_id, outputEvent)
+              await capture.messageLogger.logStreamEvent(outputEvent, screenshot)
+              capture.emitEvent(task.query_id, {
+                ...outputEvent,
+                ...(screenshot !== undefined && { screenshot }),
+              })
             }
           }
           if (text) {
@@ -305,6 +319,9 @@ export class OrchestratorExecutorEvaluator implements AgentEvaluator {
       )
 
       const endTime = Date.now()
+      if (finalAnswer && capture.getLastAssistantText() !== finalAnswer) {
+        await capture.messageLogger.logAssistantText(finalAnswer)
+      }
 
       const metadata: TaskMetadata = {
         query_id: task.query_id,

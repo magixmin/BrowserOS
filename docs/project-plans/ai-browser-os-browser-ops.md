@@ -1,5 +1,7 @@
 # AI Browser OS + IP 调度 + 多账号管理项目规划
 
+> 当前执行中的未完成项与状态快照统一记录在仓库根目录 `UNFINISHED_TASKS.md`。
+
 ## 1. 项目目标
 
 把现有 `NovaPilotX / BrowserOS` 从“AI 可操作浏览器”升级为“面向多账号运营的 Browser Ops 平台”，具备以下核心能力：

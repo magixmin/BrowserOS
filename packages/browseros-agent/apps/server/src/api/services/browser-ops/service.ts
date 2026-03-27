@@ -17,6 +17,7 @@ import {
 import {
   listBrowserOpsProviders,
   matchBrowserOpsProvider,
+  resolveBrowserOpsProxyAuthRule,
   resolveBrowserOpsProviderRoute,
 } from './providers'
 
@@ -56,6 +57,34 @@ export class BrowserOpsService {
 
   getRuntimeSessionSpec(specId: string): BrowserOpsRuntimeSessionSpec | null {
     return this.runtimeSessionSpecs.get(specId) ?? null
+  }
+
+  resolveProxyAuthRule(bindingId: string): ReturnType<
+    typeof resolveBrowserOpsProxyAuthRule
+  > {
+    const binding = this.runtimeBindings.get(bindingId)
+    if (!binding) return null
+
+    const allocation = this.allocations.get(binding.allocationId)
+    const allocationInput = this.allocationInputs.get(binding.allocationId)
+    const selectedProxyId = allocation?.decision.selectedProxy?.id
+    const routeResolution = allocation?.routeResolution
+
+    if (!allocationInput || !selectedProxyId || !routeResolution) {
+      return null
+    }
+
+    const proxy = allocationInput.proxies.find(
+      (candidate) => candidate.id === selectedProxyId,
+    )
+    if (!proxy) return null
+
+    return resolveBrowserOpsProxyAuthRule({
+      ruleId: binding.bindingId,
+      tabId: binding.tabId,
+      proxy,
+      routeResolution,
+    })
   }
 
   updateRuntimeSessionBrowserContext(

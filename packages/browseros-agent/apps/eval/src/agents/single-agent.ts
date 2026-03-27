@@ -15,6 +15,8 @@ const CONTROLLER_STUB = {
   stop: async () => {},
   isConnected: () => false,
   send: async () => ({}),
+  getWindowOwnerClientId: () => null,
+  listOwnedWindows: () => [],
 } as any
 
 function extractCdpPort(config: EvalConfig): number {
@@ -82,6 +84,7 @@ export class SingleAgentEvaluator implements AgentEvaluator {
         resolvedConfig: agentConfig,
         browser,
         registry,
+        localMcpUrl: `${config.browseros.server_url}/mcp`,
         browserContext,
       })
 
@@ -92,6 +95,7 @@ export class SingleAgentEvaluator implements AgentEvaluator {
         async (signal) => {
           if (!agent) throw new Error('Agent was not initialized')
           const result = await agent.toolLoopAgent.generate({
+            options: {},
             prompt: task.query,
             abortSignal: signal,
 
@@ -109,6 +113,7 @@ export class SingleAgentEvaluator implements AgentEvaluator {
                 const screenshotNum = await capture.screenshot.capture(
                   capture.getActivePageId(),
                 )
+                capture.queueScreenshot(screenshotNum)
                 capture.emitEvent(task.query_id, {
                   type: 'screenshot-captured',
                   screenshot: screenshotNum,
@@ -134,13 +139,20 @@ export class SingleAgentEvaluator implements AgentEvaluator {
 
               if (toolResults) {
                 for (const tr of toolResults) {
+                  const screenshot = capture.takePendingScreenshot()
                   const outputEvent = {
                     type: 'tool-output-available',
                     toolCallId: tr.toolCallId,
                     output: tr.output,
                   } as any
-                  await capture.messageLogger.logStreamEvent(outputEvent)
-                  capture.emitEvent(task.query_id, outputEvent)
+                  await capture.messageLogger.logStreamEvent(
+                    outputEvent,
+                    screenshot,
+                  )
+                  capture.emitEvent(task.query_id, {
+                    ...outputEvent,
+                    ...(screenshot !== undefined && { screenshot }),
+                  })
                 }
               }
 
@@ -166,6 +178,9 @@ export class SingleAgentEvaluator implements AgentEvaluator {
       )
 
       const endTime = Date.now()
+      if (finalText && capture.getLastAssistantText() !== finalText) {
+        await capture.messageLogger.logAssistantText(finalText)
+      }
 
       const metadata: TaskMetadata = {
         query_id: task.query_id,
@@ -179,6 +194,7 @@ export class SingleAgentEvaluator implements AgentEvaluator {
         final_answer: finalText ?? capture.getLastAssistantText(),
         errors: capture.getErrors(),
         warnings: capture.getWarnings(),
+        device_pixel_ratio: capture.screenshot.getDevicePixelRatio(),
         agent_config: {
           type: 'single',
           model: agentConfig.model,

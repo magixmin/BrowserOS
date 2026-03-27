@@ -52,6 +52,15 @@ export function defineTool<
   return config as ToolDefinition
 }
 
+function getPageIdFromArgs(args: unknown): number | undefined {
+  if (!args || typeof args !== 'object' || !('page' in args)) {
+    return undefined
+  }
+
+  const { page } = args as { page?: unknown }
+  return typeof page === 'number' ? page : undefined
+}
+
 export async function executeTool(
   tool: ToolDefinition,
   args: unknown,
@@ -74,8 +83,7 @@ export async function executeTool(
 
   const result = await response.build(ctx.browser)
 
-  // TODO: nikhil -- maybe add to tool context instead of ugly args casting
-  const pageId = (args as Record<string, unknown>).page
+  const pageId = getPageIdFromArgs(args)
   if (typeof pageId === 'number') {
     const tabId = ctx.browser.getTabIdForPage(pageId)
     if (tabId !== undefined) {

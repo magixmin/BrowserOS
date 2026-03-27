@@ -164,10 +164,12 @@ export class Executor {
         resolvedConfig: agentConfig,
         browser: this.browser,
         registry,
+        localMcpUrl: `${this.serverUrl}/mcp`,
         browserContext,
       })
 
       await agent.toolLoopAgent.generate({
+        options: {},
         prompt: instruction,
         abortSignal: signal,
 

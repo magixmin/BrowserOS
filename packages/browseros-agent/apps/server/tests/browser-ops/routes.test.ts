@@ -83,6 +83,10 @@ function createPreviewPayload() {
 }
 
 function createRouteApp() {
+  const controllerMessages: Array<{
+    action: string
+    payload?: Record<string, unknown>
+  }> = []
   const assets = new Map<string, BrowserOpsRuntimeAssetManifest>()
   const bundles = new Map<string, BrowserOpsLaunchBundle>()
   const executions = new Map<string, BrowserOpsLaunchExecution>()
@@ -216,6 +220,11 @@ function createRouteApp() {
       clearCookies: async () => undefined,
     } as never,
     controller: {
+      isConnected: () => true,
+      send: async (action: string, payload?: Record<string, unknown>) => {
+        controllerMessages.push({ action, payload })
+        return {}
+      },
       getWindowOwnerClientId: (windowId: number) =>
         windowId === 4
           ? 'client-owner-4'
@@ -735,6 +744,7 @@ function createRouteApp() {
 
   return Object.assign(app, {
     __testState: {
+      controllerMessages,
       liveBrowserContexts,
       disposedBrowserContexts,
     },
@@ -751,6 +761,75 @@ describe('Browser Ops routes', () => {
       providers: { id: string }[]
     }
     assert.ok(json.providers.length >= 5)
+  })
+
+  it('resolves a browser ops task skill into an installed skill', async () => {
+    const app = createRouteApp()
+    const payload = createPreviewPayload().task
+
+    const response = await app.request('/skills/resolve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+
+    assert.strictEqual(response.status, 200)
+    const json = (await response.json()) as {
+      resolution: {
+        matchType: string
+        resolvedSkillId: string | null
+        candidates: Array<{ skillId: string; exists: boolean }>
+      }
+    }
+    assert.strictEqual(json.resolution.matchType, 'mapped')
+    assert.strictEqual(json.resolution.resolvedSkillId, 'fill-form')
+    assert.ok(
+      json.resolution.candidates.some(
+        (candidate) =>
+          candidate.skillId === 'fill-form' && candidate.exists === true,
+      ),
+    )
+  })
+
+  it('builds an automation brief from task, route, and skill context', async () => {
+    const originalUser = process.env.BROWSER_OPS_BRIGHTDATA_USERNAME
+    const originalPass = process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD
+    process.env.BROWSER_OPS_BRIGHTDATA_USERNAME = 'brd-user'
+    process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD = 'brd-pass'
+
+    const app = createRouteApp()
+    const payload = createPreviewPayload()
+
+    const response = await app.request('/automation/brief', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+
+    assert.strictEqual(response.status, 200)
+    const json = (await response.json()) as {
+      brief: {
+        readiness: string
+        resolvedSkillId: string | null
+        recommendedStartUrl: string
+        launchMode: string
+        executionPrompt: string
+      }
+    }
+    assert.strictEqual(json.brief.readiness, 'ready')
+    assert.strictEqual(json.brief.resolvedSkillId, 'fill-form')
+    assert.strictEqual(
+      json.brief.recommendedStartUrl,
+      'https://www.tiktok.com/upload',
+    )
+    assert.strictEqual(json.brief.launchMode, 'managed-window')
+    assert.ok(json.brief.executionPrompt.includes('Task: TikTok Publish Video'))
+    assert.ok(json.brief.executionPrompt.includes('Resolved skill: fill-form'))
+
+    if (originalUser === undefined) delete process.env.BROWSER_OPS_BRIGHTDATA_USERNAME
+    else process.env.BROWSER_OPS_BRIGHTDATA_USERNAME = originalUser
+    if (originalPass === undefined) delete process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD
+    else process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD = originalPass
   })
 
   it('previews and allocates a route', async () => {
@@ -933,6 +1012,181 @@ describe('Browser Ops routes', () => {
       assets: { state: string }[]
     }
     assert.strictEqual(releasedAssetsJson.assets[0]?.state, 'released')
+  })
+
+  it('pushes proxy auth rules to the controller when binding a managed route with configured env creds', async () => {
+    const originalUser = process.env.BROWSER_OPS_BRIGHTDATA_USERNAME
+    const originalPass = process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD
+    process.env.BROWSER_OPS_BRIGHTDATA_USERNAME = 'brd-user'
+    process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD = 'brd-pass'
+
+    const app = createRouteApp()
+    const payload = createPreviewPayload()
+
+    const allocateResponse = await app.request('/allocate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const allocateJson = (await allocateResponse.json()) as {
+      allocation: { allocationId: string }
+    }
+
+    const bindResponse = await app.request('/runtime/bind-active-window', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        allocationId: allocateJson.allocation.allocationId,
+      }),
+    })
+
+    assert.strictEqual(bindResponse.status, 201)
+
+    const controllerMessages = (
+      app as typeof app & {
+        __testState: {
+          controllerMessages: Array<{
+            action: string
+            payload?: Record<string, unknown>
+          }>
+        }
+      }
+    ).__testState.controllerMessages
+    const proxyAuthMessage = controllerMessages.find(
+      (message) => message.action === 'setProxyAuthRule',
+    )
+
+    assert.ok(proxyAuthMessage)
+    assert.strictEqual(proxyAuthMessage?.payload?.host, 'brd.superproxy.io')
+    assert.strictEqual(proxyAuthMessage?.payload?.port, 33335)
+    assert.strictEqual(proxyAuthMessage?.payload?.username, 'brd-user')
+    assert.strictEqual(proxyAuthMessage?.payload?.password, 'brd-pass')
+    assert.strictEqual(proxyAuthMessage?.payload?.tabId, 12)
+
+    if (originalUser === undefined) delete process.env.BROWSER_OPS_BRIGHTDATA_USERNAME
+    else process.env.BROWSER_OPS_BRIGHTDATA_USERNAME = originalUser
+    if (originalPass === undefined) delete process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD
+    else process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD = originalPass
+  })
+
+  it('clears proxy auth rules when a bound runtime is unbound', async () => {
+    const originalUser = process.env.BROWSER_OPS_BRIGHTDATA_USERNAME
+    const originalPass = process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD
+    process.env.BROWSER_OPS_BRIGHTDATA_USERNAME = 'brd-user'
+    process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD = 'brd-pass'
+
+    const app = createRouteApp()
+    const payload = createPreviewPayload()
+
+    const allocateResponse = await app.request('/allocate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const allocateJson = (await allocateResponse.json()) as {
+      allocation: { allocationId: string }
+    }
+
+    const bindResponse = await app.request('/runtime/bind-active-window', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        allocationId: allocateJson.allocation.allocationId,
+      }),
+    })
+    const bindJson = (await bindResponse.json()) as {
+      binding: { bindingId: string }
+    }
+
+    const unbindResponse = await app.request('/runtime/unbind', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bindingId: bindJson.binding.bindingId,
+      }),
+    })
+
+    assert.strictEqual(unbindResponse.status, 200)
+
+    const controllerMessages = (
+      app as typeof app & {
+        __testState: {
+          controllerMessages: Array<{
+            action: string
+            payload?: Record<string, unknown>
+          }>
+        }
+      }
+    ).__testState.controllerMessages
+    const clearMessage = controllerMessages.find(
+      (message) => message.action === 'clearProxyAuthRule',
+    )
+
+    assert.ok(clearMessage)
+    assert.strictEqual(clearMessage?.payload?.ruleId, bindJson.binding.bindingId)
+
+    if (originalUser === undefined) delete process.env.BROWSER_OPS_BRIGHTDATA_USERNAME
+    else process.env.BROWSER_OPS_BRIGHTDATA_USERNAME = originalUser
+    if (originalPass === undefined) delete process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD
+    else process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD = originalPass
+  })
+
+  it('clears proxy auth rules when an allocation is released', async () => {
+    const originalUser = process.env.BROWSER_OPS_BRIGHTDATA_USERNAME
+    const originalPass = process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD
+    process.env.BROWSER_OPS_BRIGHTDATA_USERNAME = 'brd-user'
+    process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD = 'brd-pass'
+
+    const app = createRouteApp()
+    const payload = createPreviewPayload()
+
+    const allocateResponse = await app.request('/allocate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const allocateJson = (await allocateResponse.json()) as {
+      allocation: { allocationId: string }
+    }
+
+    await app.request('/runtime/bind-active-window', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        allocationId: allocateJson.allocation.allocationId,
+      }),
+    })
+
+    const releaseResponse = await app.request('/release', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        allocationId: allocateJson.allocation.allocationId,
+      }),
+    })
+
+    assert.strictEqual(releaseResponse.status, 200)
+
+    const controllerMessages = (
+      app as typeof app & {
+        __testState: {
+          controllerMessages: Array<{
+            action: string
+            payload?: Record<string, unknown>
+          }>
+        }
+      }
+    ).__testState.controllerMessages
+    const clearMessage = controllerMessages.find(
+      (message) => message.action === 'clearProxyAuthRule',
+    )
+
+    assert.ok(clearMessage)
+
+    if (originalUser === undefined) delete process.env.BROWSER_OPS_BRIGHTDATA_USERNAME
+    else process.env.BROWSER_OPS_BRIGHTDATA_USERNAME = originalUser
+    if (originalPass === undefined) delete process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD
+    else process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD = originalPass
   })
 
   it('returns controller window ownership registry', async () => {
