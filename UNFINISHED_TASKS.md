@@ -8,11 +8,11 @@ This file is the current task board for work that is not fully closed yet. Sourc
 
 - [ ] Real proxy provider credentials and live route dialing
   Source: `docs/project-plans/ai-browser-os-browser-ops.md`
-  Status: data model and adapter skeleton exist; recent rounds added safe `proxyServerArg`, credential source/env hints, preview-time missing-env warnings, launcher-side missing-credential detection, and controller-side proxy auth rule injection for bound tabs, but full end-to-end provider dialing across managed instances is still not wired.
+  Status: data model and adapter skeleton exist; recent rounds added safe `proxyServerArg`, credential source/env hints, preview-time missing-env warnings, launcher-side missing-credential detection, resolved credential injection into launched BrowserOS process env, and controller-side proxy auth rule injection for bound tabs, but full end-to-end provider dialing across managed instances is still not wired.
 
 - [ ] Chromium profile / session isolation
   Source: `docs/project-plans/ai-browser-os-browser-ops.md`
-  Status: window ownership, runtime binding, and diagnostics exist; true profile/session isolation is still pending.
+  Status: window ownership, runtime binding, browserContext wiring, and diagnostics exist; this round also moved Chromium profile directories to launch-context-scoped names instead of sharing one directory per profile, but full launched-instance isolation and lifecycle closure are still pending.
 
 - [ ] Skill execution and automation landing
   Source: `docs/project-plans/ai-browser-os-browser-ops.md`

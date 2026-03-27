@@ -276,6 +276,53 @@ describe('BrowserOpsService', () => {
     assert.strictEqual(service.listRuntimeSessionSpecs().length, 0)
   })
 
+  it('uses distinct profile directories for separate runtime contexts of the same profile', () => {
+    const service = new BrowserOpsService()
+    const firstAllocation = service.allocateRoute(createPreviewInput())
+    const secondAllocation = service.allocateRoute(createPreviewInput())
+
+    const firstBinding = service.bindAllocationToPage({
+      allocationId: firstAllocation.allocationId,
+      controllerClientId: 'client-1',
+      page: {
+        pageId: 77,
+        tabId: 15,
+        windowId: 9,
+        url: 'https://sellercentral.amazon.com',
+        title: 'Amazon Seller Central',
+      },
+    })
+
+    const secondBinding = service.bindAllocationToPage({
+      allocationId: secondAllocation.allocationId,
+      controllerClientId: 'client-2',
+      page: {
+        pageId: 88,
+        tabId: 16,
+        windowId: 10,
+        url: 'https://sellercentral.amazon.com/inventory',
+        title: 'Amazon Inventory',
+      },
+    })
+
+    assert.ok(firstBinding?.runtimeSpecId)
+    assert.ok(secondBinding?.runtimeSpecId)
+
+    const firstSpec = service.getRuntimeSessionSpec(firstBinding?.runtimeSpecId ?? '')
+    const secondSpec = service.getRuntimeSessionSpec(
+      secondBinding?.runtimeSpecId ?? '',
+    )
+
+    assert.ok(firstSpec)
+    assert.ok(secondSpec)
+    assert.notStrictEqual(
+      firstSpec?.profileDirectoryName,
+      secondSpec?.profileDirectoryName,
+    )
+    assert.strictEqual(firstSpec?.launchContextId, 'profile_amazon_us_01:9')
+    assert.strictEqual(secondSpec?.launchContextId, 'profile_amazon_us_01:10')
+  })
+
   it('produces runtime diagnostics', () => {
     const service = new BrowserOpsService()
     const allocation = service.allocateRoute(createPreviewInput())

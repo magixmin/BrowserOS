@@ -135,6 +135,40 @@ export class BrowserOpsRuntimeLauncherService
     return { requiredEnvVars, missingEnvVars, notes }
   }
 
+  private buildLaunchEnv(bundle: BrowserOpsLaunchBundle): {
+    env: NodeJS.ProcessEnv
+    notes: string[]
+  } {
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      ...bundle.env,
+    }
+    const notes: string[] = []
+    const proxy = bundle.proxy
+
+    if (
+      proxy?.credentialSource === 'env' &&
+      proxy.credentialEnv?.username &&
+      proxy.credentialEnv?.password
+    ) {
+      const username = process.env[proxy.credentialEnv.username]
+      const password = process.env[proxy.credentialEnv.password]
+
+      if (username && password) {
+        env.BROWSER_OPS_PROXY_AUTH_USERNAME_RESOLVED = username
+        env.BROWSER_OPS_PROXY_AUTH_PASSWORD_RESOLVED = password
+        if (proxy.serverArg) {
+          env.BROWSER_OPS_PROXY_SERVER = proxy.serverArg
+        }
+        notes.push(
+          'Injected resolved proxy credentials into the launched browser environment.',
+        )
+      }
+    }
+
+    return { env, notes }
+  }
+
   async listExecutions(): Promise<BrowserOpsLaunchExecution[]> {
     const persisted = await this.persistence.listLaunchExecutions()
     const merged = new Map<string, BrowserOpsLaunchExecution>()
@@ -261,6 +295,7 @@ export class BrowserOpsRuntimeLauncherService
     }
 
     try {
+      const launchEnv = this.buildLaunchEnv(bundle)
       const child = spawn(
         binaryPath,
         [
@@ -270,10 +305,7 @@ export class BrowserOpsRuntimeLauncherService
           `--browseros-extension-port=${ports.extension}`,
         ],
         {
-          env: {
-            ...process.env,
-            ...bundle.env,
-          },
+          env: launchEnv.env,
           detached: true,
           stdio: 'ignore',
         },
@@ -295,6 +327,7 @@ export class BrowserOpsRuntimeLauncherService
         notes: [
           'Spawned BrowserOS process from launch bundle.',
           ...credentialStatus.notes,
+          ...launchEnv.notes,
         ],
       }
 

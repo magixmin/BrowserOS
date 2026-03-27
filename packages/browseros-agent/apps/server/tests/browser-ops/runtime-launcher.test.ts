@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, it } from 'bun:test'
 import assert from 'node:assert'
-import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type {
@@ -182,6 +182,51 @@ describe('BrowserOpsRuntimeLauncherService', () => {
         note.includes('Missing required proxy credential env vars'),
       ),
     )
+  })
+
+  it('injects resolved proxy credentials into the launched browser environment', async () => {
+    const scriptPath = join(tempDir, 'fake-browser-with-env.sh')
+    const capturePath = join(tempDir, 'proxy-env.txt')
+    await writeFile(
+      scriptPath,
+      [
+        '#!/usr/bin/env bash',
+        'printf "%s|%s|%s" "$BROWSER_OPS_PROXY_AUTH_USERNAME_RESOLVED" "$BROWSER_OPS_PROXY_AUTH_PASSWORD_RESOLVED" "$BROWSER_OPS_PROXY_SERVER" > "$BROWSER_OPS_TEST_CAPTURE_FILE"',
+        'sleep 30',
+      ].join('\n'),
+    )
+    await chmod(scriptPath, 0o755)
+
+    process.env.BROWSEROS_BINARY = scriptPath
+    process.env.BROWSER_OPS_DECODO_USERNAME = 'decodo-user'
+    process.env.BROWSER_OPS_DECODO_PASSWORD = 'decodo-pass'
+    process.env.BROWSER_OPS_TEST_CAPTURE_FILE = capturePath
+
+    const persistence = new MemoryLauncherPersistence()
+    const service = new BrowserOpsRuntimeLauncherService(persistence)
+
+    const execution = await service.launchBundle(createBundleWithEnvProxy(), {
+      execute: true,
+    })
+
+    assert.strictEqual(execution.state, 'launched')
+    assert.ok(
+      execution.notes.some((note) =>
+        note.includes('Injected resolved proxy credentials'),
+      ),
+    )
+
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    const captured = await readFile(capturePath, 'utf-8')
+    assert.strictEqual(
+      captured,
+      'decodo-user|decodo-pass|gate.decodo.com:10000',
+    )
+
+    await service.stopExecution(execution.executionId)
+    delete process.env.BROWSER_OPS_TEST_CAPTURE_FILE
+    delete process.env.BROWSER_OPS_DECODO_USERNAME
+    delete process.env.BROWSER_OPS_DECODO_PASSWORD
   })
 
   it('launches and stops a process when binary is configured', async () => {

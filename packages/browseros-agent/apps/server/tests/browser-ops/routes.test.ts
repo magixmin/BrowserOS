@@ -1,4 +1,5 @@
-import { describe, it } from 'bun:test'
+import { dirname, resolve } from 'node:path'
+import { describe, it, mock } from 'bun:test'
 import assert from 'node:assert'
 import type {
   BrowserOpsInstanceDiagnostics,
@@ -10,6 +11,17 @@ import type {
   BrowserOpsRuntimeSessionSpec,
 } from '@browseros/shared/browser-ops'
 import { createBrowserOpsRoutes } from '../../src/api/routes/browser-ops'
+
+const SERVER_SRC_DIR = resolve(dirname(import.meta.path), '../../src')
+
+mock.module('../../src/lib/browseros-dir', () => {
+  const browserosDir = resolve(SERVER_SRC_DIR, '..')
+  return {
+    getBrowserosDir: () => browserosDir,
+    getSkillsDir: () => resolve(browserosDir, 'skills'),
+    getBuiltinSkillsDir: () => resolve(SERVER_SRC_DIR, 'skills/defaults'),
+  }
+})
 
 function createPreviewPayload() {
   return {

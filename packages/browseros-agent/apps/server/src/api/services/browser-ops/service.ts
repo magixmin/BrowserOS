@@ -418,6 +418,8 @@ export class BrowserOpsService {
         : allocation.decision.rotationStrategy === 'sticky-session'
           ? 'standard-warmup'
           : 'fast-start'
+    const launchContextId = `${input.profile.id}:${binding.windowId ?? binding.tabId}`
+    const profileDirectoryName = `profile-${launchContextId.replace(/[^a-zA-Z0-9._-]/g, '_')}`
 
     return {
       specId: crypto.randomUUID(),
@@ -438,8 +440,8 @@ export class BrowserOpsService {
       },
       sessionPartition: input.profile.sessionPartition,
       cookieVaultKey: input.profile.cookieVaultKey,
-      profileDirectoryName: `profile-${input.profile.id}`,
-      launchContextId: `${input.profile.id}:${binding.windowId ?? binding.tabId}`,
+      profileDirectoryName,
+      launchContextId,
       fingerprint: allocation.decision.recommendedFingerprint,
       proxyResolution: allocation.routeResolution,
       warmupPolicy,
