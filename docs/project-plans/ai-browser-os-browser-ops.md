@@ -119,10 +119,11 @@
 
 交付：
 
-- Bright Data / Decodo / Webshare adapter
+- Bright Data / Decodo / Webshare adapter 骨架
 - 统一代理凭据模型
-- IP 健康检查与评分
-- 本地服务 API：申请路由、释放路由、轮换 IP
+- IP 健康检查与评分结构
+- 本地服务 API：预览路由、申请路由、释放路由、查看活动分配
+- Provider route resolution：把代理条目解析成标准化拨号模板
 
 验收标准：
 
@@ -140,6 +141,18 @@
 - Chromium profile 映射规则
 - session partition 生命周期管理
 - Cookie Vault 与导入导出
+- runtime session spec：把 profile + route + window 变成可执行运行时规格
+- controller ownership registry：window -> controller client
+- runtime diagnostics：检测 window / ownership / binding / spec 漂移
+- runtime assets：落盘 profile 目录、cookie vault、spec JSON
+- managed window flow：为 allocation 打开专用窗口并自动绑定
+- managed window launch chain：先恢复 Vault，再首跳导航
+- managed browser context：managed window 运行在独立 browserContextId 中
+- browser context diagnostics：检测 live contexts 与 runtime specs 漂移
+- runtime reconcile：清理 orphan contexts，重建缺失 contexts
+- launch bundle：生成接近真实 Chromium 启动参数的配置包
+- local launcher service：支持 prepare / launch / stop 执行记录
+- launch execution persistence：本地落盘 launcher 执行历史
 
 验收标准：
 
@@ -315,7 +328,18 @@
 - [x] 新增本地存储与默认种子数据
 - [x] 新增 AI 路由决策器（MVP）
 - [x] 新增设置页入口和管理 UI
-- [ ] 接入真实 proxy provider adapter
+- [x] 新增 Browser Ops server 路由服务骨架
+- [x] 新增 provider catalog / adapter skeleton
+- [x] 新增 route allocation / release 生命周期骨架
+- [x] 新增 provider route resolution 与 BYO endpoint 解析
+- [x] 新增健康评分与风险分层
+- [x] 新增 runtime binding：allocation -> active window/tab 归属骨架
+- [x] 新增 runtime session spec：sessionPartition / cookieVault / 指纹 / 风险级别
+- [x] 新增 controller window ownership registry
+- [x] 新增 runtime diagnostics 视图与接口
+- [x] 新增 runtime assets 持久化与文件落盘
+- [x] 新增 open managed window 流程
+- [ ] 接入真实 proxy provider adapter 凭据与联网拨号
 - [ ] 接入 Chromium profile / session 隔离
 - [ ] 接入 Skill 执行与自动化任务落地
 

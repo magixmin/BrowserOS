@@ -1,0 +1,1038 @@
+import { describe, it } from 'bun:test'
+import assert from 'node:assert'
+import type {
+  BrowserOpsLaunchBundle,
+  BrowserOpsLaunchExecution,
+  BrowserOpsRuntimeAssetManifest,
+  BrowserOpsRuntimeSessionSpec,
+} from '@browseros/shared/browser-ops'
+import { createBrowserOpsRoutes } from '../../src/api/routes/browser-ops'
+
+function createPreviewPayload() {
+  return {
+    profile: {
+      id: 'profile_tiktok_us_01',
+      name: 'TikTok US Creator',
+      accountLabel: '@nova_us_creator',
+      platform: 'tiktok',
+      marketCountry: 'US',
+      proxyMode: 'auto',
+      preferredIpTypes: ['residential', 'mobile'],
+      preferredRegion: 'US',
+      sessionPartition: 'persist:profile_tiktok_us_01',
+      cookieVaultKey: 'vault:profile_tiktok_us_01',
+      status: 'ready',
+      fingerprint: {
+        userAgentPreset: 'Chrome 137 / Desktop',
+        timezone: 'America/New_York',
+        language: 'en-US',
+        locale: 'en-US',
+        platform: 'Windows',
+        webglProfile: 'Intel Iris Xe',
+        canvasNoise: 'light',
+        fontsPreset: 'office-desktop',
+      },
+      tags: ['creator', 'publishing'],
+    },
+    task: {
+      id: 'task_tiktok_publish_video',
+      name: 'TikTok Publish Video',
+      platform: 'tiktok',
+      taskType: 'publishing',
+      goal: 'Upload a prepared video and publish it.',
+      targetCountry: 'US',
+      requiredIpTypes: ['residential', 'mobile'],
+      preferredSessionMode: 'sticky',
+      rotateIpOnEachRun: false,
+      humanizationLevel: 'strict',
+      skillKey: 'post_tiktok_video',
+    },
+    proxies: [
+      {
+        id: 'proxy_brightdata_us_resi_01',
+        name: 'BrightData US Residential',
+        sourceType: 'managed',
+        providerName: 'Bright Data',
+        endpoint: 'brd.superproxy.io:33335',
+        builtInPool: true,
+        ipType: 'residential',
+        sessionMode: 'sticky',
+        countries: ['US'],
+        rotationSupport: true,
+        stickySessionTtlMinutes: 30,
+        status: 'active',
+        health: {
+          successRate: 0.96,
+          banRate: 0.02,
+          latencyMs: 420,
+          lastCheckedAt: new Date().toISOString(),
+        },
+      },
+    ],
+    settings: {
+      autoRouteIp: true,
+      autoAlignFingerprint: true,
+      allowBringYourOwnProxy: true,
+      useBuiltInProxyPool: true,
+      enforceQualityGuard: true,
+    },
+  }
+}
+
+function createRouteApp() {
+  const assets = new Map<string, BrowserOpsRuntimeAssetManifest>()
+  const bundles = new Map<string, BrowserOpsLaunchBundle>()
+  const executions = new Map<string, BrowserOpsLaunchExecution>()
+  const vaults = new Map<
+    string,
+    {
+      vaultKey: string
+      cookies: unknown[]
+      updatedAt: string
+      capturedFromUrls?: string[]
+    }
+  >()
+  const dynamicPages = [
+    {
+      pageId: 31,
+      targetId: 'target-31',
+      tabId: 12,
+      url: 'https://www.tiktok.com/upload',
+      title: 'TikTok Upload',
+      isActive: true,
+      isLoading: false,
+      loadProgress: 1,
+      isPinned: false,
+      isHidden: false,
+      windowId: 4,
+    },
+  ]
+  const liveBrowserContexts = ['orphan-context']
+  const disposedBrowserContexts: string[] = []
+  let nextBrowserContextId = 5
+
+  const app = createBrowserOpsRoutes({
+    browser: {
+      getActivePage: async () => ({
+        ...dynamicPages[0],
+      }),
+      listWindows: async () => [
+        {
+          windowId: 4,
+          windowType: 'normal',
+          bounds: {},
+          isActive: true,
+          isVisible: true,
+          tabCount: 2,
+          activeTabId: 12,
+        },
+        {
+          windowId: 5,
+          windowType: 'normal',
+          bounds: {},
+          isActive: false,
+          isVisible: true,
+          tabCount: 1,
+          activeTabId: 21,
+        },
+      ],
+      createWindow: async () => ({
+        windowId: 5,
+        windowType: 'normal',
+        bounds: {},
+        isActive: false,
+        isVisible: true,
+        tabCount: 1,
+        activeTabId: 21,
+      }),
+      createBrowserContext: async () => {
+        const browserContextId = `context-${nextBrowserContextId++}`
+        liveBrowserContexts.push(browserContextId)
+        return browserContextId
+      },
+      getBrowserContexts: async () => [...liveBrowserContexts],
+      disposeBrowserContext: async (browserContextId: string) => {
+        disposedBrowserContexts.push(browserContextId)
+        const index = liveBrowserContexts.indexOf(browserContextId)
+        if (index >= 0) {
+          liveBrowserContexts.splice(index, 1)
+        }
+      },
+      newPage: async (url: string) => {
+        dynamicPages.push({
+          pageId: 88,
+          targetId: 'target-88',
+          tabId: 21,
+          url,
+          title: url.includes('amazon')
+            ? 'Amazon Seller Central'
+            : 'Managed Window',
+          isActive: true,
+          isLoading: false,
+          loadProgress: 1,
+          isPinned: false,
+          isHidden: false,
+          windowId: 5,
+        })
+        return 88
+      },
+      goto: async (pageId: number, url: string) => {
+        const page = dynamicPages.find(
+          (candidate) => candidate.pageId === pageId,
+        )
+        if (!page) return
+        page.url = url
+        page.title = url.includes('amazon')
+          ? 'Amazon Seller Central'
+          : url.includes('tiktok')
+            ? 'TikTok Upload'
+            : 'Managed Window'
+      },
+      listPages: async () => dynamicPages,
+      getCookies: async (urls?: string[]) =>
+        [
+          {
+            name: 'sessionid',
+            value: 'cookie-1',
+            domain: '.tiktok.com',
+            path: '/',
+            expires: Date.now() / 1000 + 3600,
+            size: 10,
+            httpOnly: true,
+            secure: true,
+            session: false,
+            priority: 'Medium',
+            sameParty: false,
+            sourceScheme: 'Secure',
+            sourcePort: 443,
+          },
+        ].filter(() => (urls ? urls.length > 0 : true)),
+      setCookies: async () => undefined,
+      clearCookies: async () => undefined,
+    } as never,
+    controller: {
+      getWindowOwnerClientId: (windowId: number) =>
+        windowId === 4
+          ? 'client-owner-4'
+          : windowId === 5
+            ? 'client-owner-5'
+            : null,
+      listOwnedWindows: () => [
+        {
+          clientId: 'client-owner-4',
+          windowId: 4,
+          isPrimaryClient: true,
+          isFocusedWindow: true,
+        },
+        {
+          clientId: 'client-owner-5',
+          windowId: 5,
+          isPrimaryClient: false,
+          isFocusedWindow: false,
+        },
+      ],
+    } as never,
+    runtimePersistence: {
+      async materializeRuntimeSessionSpec(
+        spec: BrowserOpsRuntimeSessionSpec,
+      ): Promise<BrowserOpsRuntimeAssetManifest> {
+        const asset: BrowserOpsRuntimeAssetManifest = {
+          manifestId: `manifest-${spec.specId}`,
+          specId: spec.specId,
+          bindingId: spec.bindingId,
+          allocationId: spec.allocationId,
+          profileId: spec.profileId,
+          createdAt: spec.createdAt,
+          state: 'active',
+          profileDirectoryPath: `/tmp/profiles/${spec.profileDirectoryName}`,
+          cookieVaultPath: `/tmp/vaults/${spec.cookieVaultKey}.json`,
+          runtimeSpecPath: `/tmp/specs/${spec.specId}.json`,
+        }
+        assets.set(asset.specId, asset)
+        return asset
+      },
+      async listLaunchBundles() {
+        return [...bundles.values()]
+      },
+      async readLaunchBundle(specId: string) {
+        return bundles.get(specId) ?? null
+      },
+      async materializeLaunchBundle(specId: string) {
+        const asset = assets.get(specId)
+        if (!asset) return null
+        const bundle: BrowserOpsLaunchBundle = {
+          bundleId: `bundle-${specId}`,
+          specId,
+          profileId: asset.profileId,
+          createdAt: asset.createdAt,
+          state: asset.state,
+          startupUrl: 'https://sellercentral.amazon.com',
+          userDataDir: asset.profileDirectoryPath,
+          cookieVaultPath: asset.cookieVaultPath,
+          runtimeSpecPath: asset.runtimeSpecPath,
+          browserContextId:
+            liveBrowserContexts.find((contextId) =>
+              contextId.startsWith('context-'),
+            ) ?? null,
+          launcherScriptPath: `/tmp/launch-bundles/${specId}.sh`,
+          launcherCommandPreview: `BrowserOS --user-data-dir=${asset.profileDirectoryPath}`,
+          chromiumArgs: [`--user-data-dir=${asset.profileDirectoryPath}`],
+          env: {
+            BROWSEROS_PROFILE_ID: asset.profileId,
+          },
+          fingerprint: {
+            timezone: 'America/New_York',
+            language: 'en-US',
+            locale: 'en-US',
+            userAgentPreset: 'Chrome 137 / Desktop',
+          },
+          proxy: null,
+        }
+        bundles.set(specId, bundle)
+        return bundle
+      },
+      async listRuntimeAssets() {
+        return [...assets.values()]
+      },
+      async readRuntimeSessionSpec(specId: string) {
+        const asset = assets.get(specId)
+        if (!asset) return null
+        return {
+          specId,
+          bindingId: asset.bindingId,
+          allocationId: asset.allocationId,
+          profileId: asset.profileId,
+          taskId: 'task_tiktok_publish_video',
+          createdAt: asset.createdAt,
+          state: asset.state,
+          browserContextId:
+            liveBrowserContexts.find((contextId) =>
+              contextId.startsWith('context-'),
+            ) ?? null,
+          ownership: {
+            controllerClientId: 'client-owner-5',
+            windowId: 5,
+            tabId: 21,
+            pageId: 88,
+            pageUrl: 'https://sellercentral.amazon.com',
+            pageTitle: 'Amazon Seller Central',
+          },
+          sessionPartition: 'persist:profile_tiktok_us_01',
+          cookieVaultKey: 'vault:profile_tiktok_us_01',
+          profileDirectoryName: 'profile-profile_tiktok_us_01',
+          launchContextId: 'profile_tiktok_us_01:5',
+          fingerprint: createPreviewPayload().profile.fingerprint,
+          proxyResolution: null,
+          warmupPolicy: 'strict-warmup' as const,
+          riskLevel: 'low' as const,
+        }
+      },
+      async getRuntimeAssetByBindingId(bindingId: string) {
+        return (
+          [...assets.values()].find((asset) => asset.bindingId === bindingId) ??
+          null
+        )
+      },
+      async listCookieVaults() {
+        return [...vaults.entries()].map(([vaultKey, vault]) => {
+          const asset = [...assets.values()].find(
+            (candidate) =>
+              candidate.cookieVaultPath === `/tmp/vaults/${vaultKey}.json`,
+          )
+          return {
+            bindingId: asset?.bindingId ?? 'unknown',
+            vaultKey: vault.vaultKey,
+            cookieCount: vault.cookies.length,
+            updatedAt: vault.updatedAt,
+            capturedFromUrls: vault.capturedFromUrls,
+          }
+        })
+      },
+      async readCookieVault(bindingId: string) {
+        const asset = [...assets.values()].find(
+          (candidate) => candidate.bindingId === bindingId,
+        )
+        if (!asset) return null
+        const vaultKey = asset.cookieVaultPath
+          .split('/')
+          .pop()
+          ?.replace('.json', '')
+        if (!vaultKey) return null
+        return vaults.get(vaultKey) ?? null
+      },
+      async writeCookieVault(
+        bindingId: string,
+        cookies: unknown[],
+        capturedFromUrls?: string[],
+      ) {
+        const asset = [...assets.values()].find(
+          (candidate) => candidate.bindingId === bindingId,
+        )
+        if (!asset) return null
+        const vaultKey = asset.cookieVaultPath
+          .split('/')
+          .pop()
+          ?.replace('.json', '')
+        if (!vaultKey) return null
+        const existing = vaults.get(vaultKey)
+        const next = {
+          vaultKey: existing?.vaultKey ?? vaultKey,
+          cookies,
+          updatedAt: new Date().toISOString(),
+          capturedFromUrls,
+        }
+        vaults.set(vaultKey, next)
+        return next
+      },
+      async clearCookieVault(bindingId: string) {
+        const asset = [...assets.values()].find(
+          (candidate) => candidate.bindingId === bindingId,
+        )
+        if (!asset) return null
+        const vaultKey = asset.cookieVaultPath
+          .split('/')
+          .pop()
+          ?.replace('.json', '')
+        if (!vaultKey) return null
+        const existing = vaults.get(vaultKey)
+        if (!existing) return null
+        const next = {
+          ...existing,
+          cookies: [],
+          updatedAt: new Date().toISOString(),
+        }
+        vaults.set(vaultKey, next)
+        return next
+      },
+      async markAssetsReleasedForBinding(bindingId: string) {
+        for (const [specId, asset] of assets.entries()) {
+          if (asset.bindingId === bindingId) {
+            assets.set(specId, { ...asset, state: 'released' })
+          }
+        }
+      },
+      async markAssetsReleasedForAllocation(allocationId: string) {
+        for (const [specId, asset] of assets.entries()) {
+          if (asset.allocationId === allocationId) {
+            assets.set(specId, { ...asset, state: 'released' })
+          }
+        }
+      },
+    },
+    runtimeLauncher: {
+      async listExecutions() {
+        return [...executions.values()]
+      },
+      async launchBundle(bundle, options) {
+        const executionId =
+          options?.execute === true
+            ? '00000000-0000-4000-8000-000000000002'
+            : '00000000-0000-4000-8000-000000000001'
+        const execution: BrowserOpsLaunchExecution = {
+          executionId,
+          bundleId: bundle.bundleId,
+          specId: bundle.specId,
+          profileId: bundle.profileId,
+          createdAt: new Date().toISOString(),
+          state: options?.execute ? 'launched' : 'prepared',
+          binaryPath: options?.execute
+            ? '/Applications/BrowserOS.app/Contents/MacOS/BrowserOS'
+            : null,
+          commandPreview: bundle.launcherCommandPreview,
+          dryRun: options?.execute !== true,
+          pid: options?.execute ? 4242 : null,
+          notes: [],
+        }
+        executions.set(execution.executionId, execution)
+        return execution
+      },
+      async stopExecution(executionId) {
+        const existing = executions.get(executionId)
+        if (!existing) return null
+        const stopped = {
+          ...existing,
+          state:
+            existing.state === 'prepared' || existing.state === 'failed'
+              ? existing.state
+              : 'stopped',
+        } satisfies BrowserOpsLaunchExecution
+        executions.set(executionId, stopped)
+        return stopped
+      },
+    },
+  })
+
+  return Object.assign(app, {
+    __testState: {
+      liveBrowserContexts,
+      disposedBrowserContexts,
+    },
+  })
+}
+
+describe('Browser Ops routes', () => {
+  it('returns provider catalog', async () => {
+    const app = createRouteApp()
+    const response = await app.request('/providers')
+
+    assert.strictEqual(response.status, 200)
+    const json = (await response.json()) as {
+      providers: { id: string }[]
+    }
+    assert.ok(json.providers.length >= 5)
+  })
+
+  it('previews and allocates a route', async () => {
+    const app = createRouteApp()
+    const payload = createPreviewPayload()
+
+    const previewResponse = await app.request('/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+
+    assert.strictEqual(previewResponse.status, 200)
+    const previewJson = (await previewResponse.json()) as {
+      decision: { mode: string; selectedProxy: { id: string } | null }
+    }
+    assert.strictEqual(previewJson.decision.mode, 'auto')
+    assert.strictEqual(
+      previewJson.decision.selectedProxy?.id,
+      'proxy_brightdata_us_resi_01',
+    )
+    assert.strictEqual(previewJson.routeResolution?.providerId, 'brightdata')
+
+    const allocateResponse = await app.request('/allocate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+
+    assert.strictEqual(allocateResponse.status, 201)
+    const allocateJson = (await allocateResponse.json()) as {
+      allocation: { allocationId: string; state: string }
+    }
+    assert.strictEqual(allocateJson.allocation.state, 'active')
+    assert.ok(allocateJson.allocation.allocationId)
+    assert.strictEqual(
+      allocateJson.allocation.routeResolution?.providerId,
+      'brightdata',
+    )
+  })
+
+  it('releases an allocated route', async () => {
+    const app = createRouteApp()
+    const payload = createPreviewPayload()
+
+    const allocateResponse = await app.request('/allocate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const allocateJson = (await allocateResponse.json()) as {
+      allocation: { allocationId: string }
+    }
+
+    const releaseResponse = await app.request('/release', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        allocationId: allocateJson.allocation.allocationId,
+      }),
+    })
+
+    assert.strictEqual(releaseResponse.status, 200)
+    const releaseJson = (await releaseResponse.json()) as {
+      allocation: { state: string }
+    }
+    assert.strictEqual(releaseJson.allocation.state, 'released')
+
+    const assetsResponse = await app.request('/runtime/assets')
+    const assetsJson = (await assetsResponse.json()) as {
+      assets: { state: string }[]
+    }
+    assert.strictEqual(assetsJson.assets.length, 0)
+  })
+
+  it('resolves provider route details directly', async () => {
+    const app = createRouteApp()
+    const payload = createPreviewPayload()
+
+    const response = await app.request('/providers/resolve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+
+    assert.strictEqual(response.status, 200)
+    const json = (await response.json()) as {
+      resolution: { providerId: string; authMode: string }
+    }
+    assert.strictEqual(json.resolution.providerId, 'brightdata')
+    assert.strictEqual(json.resolution.authMode, 'provider-template')
+  })
+
+  it('binds and unbinds the active runtime window', async () => {
+    const app = createRouteApp()
+    const payload = createPreviewPayload()
+
+    const allocateResponse = await app.request('/allocate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const allocateJson = (await allocateResponse.json()) as {
+      allocation: { allocationId: string }
+    }
+
+    const bindResponse = await app.request('/runtime/bind-active-window', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        allocationId: allocateJson.allocation.allocationId,
+      }),
+    })
+
+    assert.strictEqual(bindResponse.status, 201)
+    const bindJson = (await bindResponse.json()) as {
+      binding: {
+        bindingId: string
+        windowId: number
+        tabId: number
+        controllerClientId: string
+      }
+      asset: { state: string; profileDirectoryPath: string }
+      bundle: { bundleId: string } | null
+    }
+    assert.strictEqual(bindJson.binding.windowId, 4)
+    assert.strictEqual(bindJson.binding.tabId, 12)
+    assert.strictEqual(bindJson.binding.controllerClientId, 'client-owner-4')
+    assert.strictEqual(bindJson.asset.state, 'active')
+    assert.ok(bindJson.asset.profileDirectoryPath.includes('/tmp/profiles/'))
+    assert.ok(bindJson.bundle?.bundleId)
+
+    const listBindingsResponse = await app.request('/runtime-bindings')
+    assert.strictEqual(listBindingsResponse.status, 200)
+    const listBindingsJson = (await listBindingsResponse.json()) as {
+      bindings: { bindingId: string }[]
+    }
+    assert.strictEqual(listBindingsJson.bindings.length, 1)
+
+    const listSpecsResponse = await app.request('/runtime/specs')
+    assert.strictEqual(listSpecsResponse.status, 200)
+    const listSpecsJson = (await listSpecsResponse.json()) as {
+      specs: { sessionPartition: string }[]
+    }
+    assert.strictEqual(listSpecsJson.specs.length, 1)
+    assert.strictEqual(
+      listSpecsJson.specs[0]?.sessionPartition,
+      'persist:profile_tiktok_us_01',
+    )
+    assert.strictEqual(
+      listSpecsJson.specs[0]?.ownership.controllerClientId,
+      'client-owner-4',
+    )
+    assert.strictEqual(listSpecsJson.specs[0]?.browserContextId, null)
+
+    const listAssetsResponse = await app.request('/runtime/assets')
+    assert.strictEqual(listAssetsResponse.status, 200)
+    const listAssetsJson = (await listAssetsResponse.json()) as {
+      assets: { state: string }[]
+    }
+    assert.strictEqual(listAssetsJson.assets.length, 1)
+    assert.strictEqual(listAssetsJson.assets[0]?.state, 'active')
+
+    const unbindResponse = await app.request('/runtime/unbind', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bindingId: bindJson.binding.bindingId,
+      }),
+    })
+
+    assert.strictEqual(unbindResponse.status, 200)
+    const unbindJson = (await unbindResponse.json()) as {
+      binding: { state: string }
+    }
+    assert.strictEqual(unbindJson.binding.state, 'released')
+
+    const releasedAssetsResponse = await app.request('/runtime/assets')
+    const releasedAssetsJson = (await releasedAssetsResponse.json()) as {
+      assets: { state: string }[]
+    }
+    assert.strictEqual(releasedAssetsJson.assets[0]?.state, 'released')
+  })
+
+  it('returns controller window ownership registry', async () => {
+    const app = createRouteApp()
+    const response = await app.request('/runtime/ownership')
+
+    assert.strictEqual(response.status, 200)
+    const json = (await response.json()) as {
+      ownership: { clientId: string; windowId: number }[]
+    }
+    assert.strictEqual(json.ownership.length, 2)
+    assert.strictEqual(json.ownership[0]?.clientId, 'client-owner-4')
+    assert.strictEqual(json.ownership[0]?.windowId, 4)
+  })
+
+  it('returns runtime diagnostics', async () => {
+    const app = createRouteApp()
+    const payload = createPreviewPayload()
+
+    const allocateResponse = await app.request('/allocate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const allocateJson = (await allocateResponse.json()) as {
+      allocation: { allocationId: string }
+    }
+
+    await app.request('/runtime/bind-active-window', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        allocationId: allocateJson.allocation.allocationId,
+      }),
+    })
+
+    const response = await app.request('/runtime/diagnostics')
+
+    assert.strictEqual(response.status, 200)
+    const json = (await response.json()) as {
+      diagnostics: {
+        browserWindows: { windowId: number }[]
+        liveBrowserContextIds: string[]
+        unboundAllocationIds: string[]
+        controllerOwnershipDrift: string[]
+        browserContextsWithoutSpecs: string[]
+      }
+    }
+    assert.strictEqual(json.diagnostics.browserWindows.length, 2)
+    assert.strictEqual(json.diagnostics.liveBrowserContextIds.length, 1)
+    assert.strictEqual(json.diagnostics.browserWindows[0]?.windowId, 4)
+    assert.strictEqual(json.diagnostics.unboundAllocationIds.length, 0)
+    assert.strictEqual(json.diagnostics.controllerOwnershipDrift.length, 0)
+    assert.strictEqual(json.diagnostics.browserContextsWithoutSpecs.length, 1)
+    assert.ok(
+      json.diagnostics.browserContextsWithoutSpecs.includes('orphan-context'),
+    )
+  })
+
+  it('opens a managed window and binds it', async () => {
+    const app = createRouteApp()
+    const payload = createPreviewPayload()
+
+    const allocateResponse = await app.request('/allocate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const allocateJson = (await allocateResponse.json()) as {
+      allocation: { allocationId: string }
+    }
+
+    const initialBindResponse = await app.request(
+      '/runtime/bind-active-window',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          allocationId: allocateJson.allocation.allocationId,
+        }),
+      },
+    )
+    const initialBindJson = (await initialBindResponse.json()) as {
+      binding: { bindingId: string }
+    }
+
+    await app.request('/runtime/cookie-vault/capture', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bindingId: initialBindJson.binding.bindingId,
+      }),
+    })
+
+    const response = await app.request('/runtime/open-managed-window', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        allocationId: allocateJson.allocation.allocationId,
+        url: 'https://sellercentral.amazon.com',
+        hidden: false,
+        restoreCookieVault: true,
+      }),
+    })
+
+    assert.strictEqual(response.status, 201)
+    const json = (await response.json()) as {
+      window: { windowId: number }
+      page: { pageId: number; windowId: number; url: string; title: string }
+      binding: { windowId: number; controllerClientId: string | null }
+      asset: { state: string }
+      bundle: {
+        bundleId: string
+        userDataDir: string
+        launcherScriptPath: string
+      }
+      restoredCookies: number
+    }
+    assert.strictEqual(json.window.windowId, 5)
+    assert.strictEqual(json.page.pageId, 88)
+    assert.strictEqual(json.page.windowId, 5)
+    assert.strictEqual(json.page.url, 'https://sellercentral.amazon.com')
+    assert.strictEqual(json.page.title, 'Amazon Seller Central')
+    assert.strictEqual(json.binding.windowId, 5)
+    assert.strictEqual(json.binding.controllerClientId, 'client-owner-5')
+    assert.strictEqual(json.asset.state, 'active')
+    assert.ok(json.bundle.bundleId)
+    assert.ok(json.bundle.userDataDir.includes('/tmp/profiles/'))
+    assert.ok(json.bundle.launcherScriptPath.endsWith('.sh'))
+    assert.strictEqual(json.restoredCookies, 1)
+
+    const specsResponse = await app.request('/runtime/specs')
+    const specsJson = (await specsResponse.json()) as {
+      specs: { browserContextId: string | null }[]
+    }
+    assert.strictEqual(specsJson.specs[0]?.browserContextId, 'context-5')
+
+    const bundlesResponse = await app.request('/runtime/launch-bundles')
+    assert.strictEqual(bundlesResponse.status, 200)
+    const bundlesJson = (await bundlesResponse.json()) as {
+      bundles: { specId: string }[]
+    }
+    assert.ok(bundlesJson.bundles.length >= 1)
+    assert.ok(
+      bundlesJson.bundles.some(
+        (bundle) => bundle.specId === specsJson.specs[0]?.specId,
+      ),
+    )
+  })
+
+  it('reconciles orphan and missing browser contexts', async () => {
+    const app = createRouteApp() as typeof createRouteApp extends () => infer T
+      ? T & {
+          __testState: {
+            liveBrowserContexts: string[]
+            disposedBrowserContexts: string[]
+          }
+        }
+      : never
+    const payload = createPreviewPayload()
+
+    const allocateResponse = await app.request('/allocate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const allocateJson = (await allocateResponse.json()) as {
+      allocation: { allocationId: string }
+    }
+
+    const bindResponse = await app.request('/runtime/bind-active-window', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        allocationId: allocateJson.allocation.allocationId,
+      }),
+    })
+    const bindJson = (await bindResponse.json()) as {
+      binding: { bindingId: string }
+    }
+
+    await app.request('/runtime/cookie-vault/capture', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bindingId: bindJson.binding.bindingId,
+      }),
+    })
+
+    await app.request('/runtime/open-managed-window', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        allocationId: allocateJson.allocation.allocationId,
+        url: 'https://sellercentral.amazon.com',
+        hidden: false,
+        restoreCookieVault: true,
+      }),
+    })
+
+    app.__testState.liveBrowserContexts.splice(
+      app.__testState.liveBrowserContexts.indexOf('context-5'),
+      1,
+    )
+
+    const response = await app.request('/runtime/reconcile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        disposeOrphanContexts: true,
+        recreateMissingContexts: true,
+      }),
+    })
+
+    assert.strictEqual(response.status, 200)
+    const json = (await response.json()) as {
+      disposedContextIds: string[]
+      recreatedContexts: { browserContextId: string; restoredCookies: number }[]
+      diagnostics: {
+        specsWithoutBrowserContext: string[]
+        browserContextsWithoutSpecs: string[]
+      }
+    }
+    assert.ok(json.disposedContextIds.includes('orphan-context'))
+    assert.strictEqual(json.recreatedContexts.length, 1)
+    assert.strictEqual(json.recreatedContexts[0]?.browserContextId, 'context-6')
+    assert.strictEqual(json.recreatedContexts[0]?.restoredCookies, 1)
+    assert.strictEqual(json.diagnostics.specsWithoutBrowserContext.length, 0)
+    assert.strictEqual(json.diagnostics.browserContextsWithoutSpecs.length, 0)
+  })
+
+  it('captures, restores, and clears cookie vaults', async () => {
+    const app = createRouteApp()
+    const payload = createPreviewPayload()
+
+    const allocateResponse = await app.request('/allocate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const allocateJson = (await allocateResponse.json()) as {
+      allocation: { allocationId: string }
+    }
+
+    const bindResponse = await app.request('/runtime/bind-active-window', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        allocationId: allocateJson.allocation.allocationId,
+      }),
+    })
+    const bindJson = (await bindResponse.json()) as {
+      binding: { bindingId: string }
+    }
+
+    const captureResponse = await app.request('/runtime/cookie-vault/capture', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bindingId: bindJson.binding.bindingId }),
+    })
+    assert.strictEqual(captureResponse.status, 200)
+    const captureJson = (await captureResponse.json()) as { captured: number }
+    assert.strictEqual(captureJson.captured, 1)
+
+    const vaultsResponse = await app.request('/runtime/cookie-vaults')
+    const vaultsJson = (await vaultsResponse.json()) as {
+      vaults: { cookieCount: number }[]
+    }
+    assert.strictEqual(vaultsJson.vaults[0]?.cookieCount, 1)
+
+    const restoreResponse = await app.request('/runtime/cookie-vault/restore', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bindingId: bindJson.binding.bindingId }),
+    })
+    assert.strictEqual(restoreResponse.status, 200)
+
+    const clearResponse = await app.request('/runtime/cookie-vault/clear', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bindingId: bindJson.binding.bindingId }),
+    })
+    assert.strictEqual(clearResponse.status, 200)
+
+    const clearedVaultsResponse = await app.request('/runtime/cookie-vaults')
+    const clearedVaultsJson = (await clearedVaultsResponse.json()) as {
+      vaults: { cookieCount: number }[]
+    }
+    assert.strictEqual(clearedVaultsJson.vaults[0]?.cookieCount, 0)
+  })
+
+  it('prepares and starts launch executions from bundles', async () => {
+    const app = createRouteApp()
+    const payload = createPreviewPayload()
+
+    const allocateResponse = await app.request('/allocate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const allocateJson = (await allocateResponse.json()) as {
+      allocation: { allocationId: string }
+    }
+
+    await app.request('/runtime/open-managed-window', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        allocationId: allocateJson.allocation.allocationId,
+        url: 'https://sellercentral.amazon.com',
+        hidden: false,
+        restoreCookieVault: false,
+      }),
+    })
+
+    const bundlesResponse = await app.request('/runtime/launch-bundles')
+    const bundlesJson = (await bundlesResponse.json()) as {
+      bundles: { specId: string }[]
+    }
+    const specId = bundlesJson.bundles[0]?.specId
+    assert.ok(specId)
+
+    const prepareResponse = await app.request('/runtime/launch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        specId,
+        execute: false,
+      }),
+    })
+    assert.strictEqual(prepareResponse.status, 201)
+    const prepareJson = (await prepareResponse.json()) as {
+      execution: { state: string; dryRun: boolean; executionId: string }
+    }
+    assert.strictEqual(prepareJson.execution.state, 'prepared')
+    assert.strictEqual(prepareJson.execution.dryRun, true)
+
+    const launchResponse = await app.request('/runtime/launch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        specId,
+        execute: true,
+      }),
+    })
+    assert.strictEqual(launchResponse.status, 201)
+    const launchJson = (await launchResponse.json()) as {
+      execution: { state: string; pid: number | null; executionId: string }
+    }
+    assert.strictEqual(launchJson.execution.state, 'launched')
+    assert.strictEqual(launchJson.execution.pid, 4242)
+
+    const listExecutionsResponse = await app.request(
+      '/runtime/launch-executions',
+    )
+    const listExecutionsJson = (await listExecutionsResponse.json()) as {
+      executions: { executionId: string }[]
+    }
+    assert.strictEqual(listExecutionsJson.executions.length, 2)
+
+    const stopResponse = await app.request('/runtime/launch/stop', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        executionId: launchJson.execution.executionId,
+      }),
+    })
+    assert.strictEqual(stopResponse.status, 200)
+    const stopJson = (await stopResponse.json()) as {
+      execution: { state: string }
+    }
+    assert.strictEqual(stopJson.execution.state, 'stopped')
+  })
+})

@@ -15,6 +15,8 @@ export class ControllerBackend implements IControllerBackend {
   private port: number
   private clients = new Map<string, WebSocket>()
   private primaryClientId: string | null = null
+  private clientWindows = new Map<string, Set<number>>()
+  private focusedWindowId: number | null = null
   private requestCounter = 0
   private pendingRequests = new Map<string, PendingRequest>()
 
@@ -59,7 +61,7 @@ export class ControllerBackend implements IControllerBackend {
               return
             }
             if (parsed.type === 'focused') {
-              this.handleFocusEvent(clientId)
+              this.handleFocusEvent(clientId, parsed.windowId)
               return
             }
             if (
@@ -67,7 +69,7 @@ export class ControllerBackend implements IControllerBackend {
               parsed.type === 'window_created' ||
               parsed.type === 'window_removed'
             ) {
-              // Window ownership messages — ignored for now (multi-profile deferred)
+              this.handleWindowEvent(clientId, parsed)
               return
             }
 
@@ -167,6 +169,42 @@ export class ControllerBackend implements IControllerBackend {
     })
   }
 
+  getWindowOwnerClientId(windowId: number): string | null {
+    for (const [clientId, windowIds] of this.clientWindows.entries()) {
+      if (windowIds.has(windowId)) {
+        return clientId
+      }
+    }
+    return null
+  }
+
+  listOwnedWindows(): Array<{
+    clientId: string
+    windowId: number
+    isPrimaryClient: boolean
+    isFocusedWindow: boolean
+  }> {
+    const ownedWindows: Array<{
+      clientId: string
+      windowId: number
+      isPrimaryClient: boolean
+      isFocusedWindow: boolean
+    }> = []
+
+    for (const [clientId, windowIds] of this.clientWindows.entries()) {
+      for (const windowId of windowIds) {
+        ownedWindows.push({
+          clientId,
+          windowId,
+          isPrimaryClient: clientId === this.primaryClientId,
+          isFocusedWindow: windowId === this.focusedWindowId,
+        })
+      }
+    }
+
+    return ownedWindows.sort((left, right) => left.windowId - right.windowId)
+  }
+
   private handleResponse(response: {
     id: string
     ok: boolean
@@ -193,6 +231,7 @@ export class ControllerBackend implements IControllerBackend {
   private registerClient(ws: WebSocket): string {
     const clientId = `client-${Date.now()}-${Math.floor(Math.random() * 1000000)}`
     this.clients.set(clientId, ws)
+    this.clientWindows.set(clientId, new Set())
 
     if (!this.primaryClientId) {
       this.primaryClientId = clientId
@@ -209,7 +248,17 @@ export class ControllerBackend implements IControllerBackend {
 
   private handleClientDisconnect(clientId: string): void {
     const wasPrimary = this.primaryClientId === clientId
+    const ownedWindows = this.clientWindows.get(clientId)
     this.clients.delete(clientId)
+    this.clientWindows.delete(clientId)
+
+    if (
+      ownedWindows &&
+      this.focusedWindowId !== null &&
+      ownedWindows.has(this.focusedWindowId)
+    ) {
+      this.focusedWindowId = null
+    }
 
     if (wasPrimary) {
       this.primaryClientId = null
@@ -237,14 +286,71 @@ export class ControllerBackend implements IControllerBackend {
     })
   }
 
-  private handleFocusEvent(clientId: string): void {
-    if (this.primaryClientId === clientId) return
+  private handleFocusEvent(clientId: string, windowId?: number): void {
+    if (typeof windowId === 'number') {
+      this.focusedWindowId = windowId
+      const windows = this.clientWindows.get(clientId)
+      windows?.add(windowId)
+    }
+
+    if (this.primaryClientId === clientId) {
+      logger.debug('Focused window updated for current primary controller', {
+        clientId,
+        windowId,
+      })
+      return
+    }
 
     const previousPrimary = this.primaryClientId
     this.primaryClientId = clientId
     logger.info('Primary controller reassigned due to focus event', {
       clientId,
       previousPrimary,
+      windowId,
+    })
+  }
+
+  private handleWindowEvent(
+    clientId: string,
+    message: {
+      type: 'register_windows' | 'window_created' | 'window_removed'
+      windowIds?: number[]
+      windowId?: number
+    },
+  ): void {
+    const windows = this.clientWindows.get(clientId)
+    if (!windows) return
+
+    if (message.type === 'register_windows') {
+      windows.clear()
+      for (const windowId of message.windowIds ?? []) {
+        windows.add(windowId)
+      }
+      logger.info('Registered windows for controller client', {
+        clientId,
+        windowIds: [...windows],
+      })
+      return
+    }
+
+    if (typeof message.windowId !== 'number') return
+
+    if (message.type === 'window_created') {
+      windows.add(message.windowId)
+      logger.debug('Registered created window for controller client', {
+        clientId,
+        windowId: message.windowId,
+      })
+      return
+    }
+
+    windows.delete(message.windowId)
+    if (this.focusedWindowId === message.windowId) {
+      this.focusedWindowId = null
+    }
+    logger.debug('Removed window for controller client', {
+      clientId,
+      windowId: message.windowId,
     })
   }
 }

@@ -5,8 +5,8 @@ import {
   Compass,
   GitBranch,
   GlobeLock,
-  MessagesSquare,
   MessageSquare,
+  MessagesSquare,
   Palette,
   RotateCcw,
   Search,
@@ -16,9 +16,9 @@ import type { FC } from 'react'
 import { NavLink } from 'react-router'
 import { ThemeToggle } from '@/components/elements/theme-toggle'
 import { Feature } from '@/lib/browseros/capabilities'
+import { useCapabilities } from '@/lib/browseros/useCapabilities'
 import { PRODUCT_NAME } from '@/lib/constants/product'
 import { useI18n } from '@/lib/i18n/useI18n'
-import { useCapabilities } from '@/lib/browseros/useCapabilities'
 import { cn } from '@/lib/utils'
 
 type BaseNavItem = {
@@ -78,7 +78,11 @@ export const SettingsSidebar: FC = () => {
           to: '/settings/chat',
           icon: MessageSquare,
         },
-        { name: t('settings.nav.search'), to: '/settings/search', icon: Search },
+        {
+          name: t('settings.nav.search'),
+          to: '/settings/search',
+          icon: Search,
+        },
       ],
     },
     {
@@ -121,7 +125,11 @@ export const SettingsSidebar: FC = () => {
       href: 'https://docs.browseros.com/',
       icon: BookOpen,
     },
-    { name: t('settings.nav.features'), to: '/onboarding/features', icon: Compass },
+    {
+      name: t('settings.nav.features'),
+      to: '/onboarding/features',
+      icon: Compass,
+    },
     {
       name: t('settings.nav.revisitOnboarding'),
       to: '/onboarding',
@@ -188,7 +196,7 @@ export const SettingsSidebar: FC = () => {
           className="flex h-9 items-center gap-2 overflow-hidden whitespace-nowrap rounded-md px-3 font-medium text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
           <ArrowLeft className="size-4 shrink-0" />
-            <span className="truncate">{t('settings.back')}</span>
+          <span className="truncate">{t('settings.back')}</span>
         </NavLink>
         <ThemeToggle
           className="mr-1 h-8 w-8 shrink-0"

@@ -17,6 +17,13 @@ export interface ControllerBackend {
   stop(): Promise<void>
   isConnected(): boolean
   send(action: string, payload?: Record<string, unknown>): Promise<unknown>
+  getWindowOwnerClientId(windowId: number): string | null
+  listOwnedWindows(): Array<{
+    clientId: string
+    windowId: number
+    isPrimaryClient: boolean
+    isFocusedWindow: boolean
+  }>
 }
 
 export interface CdpTarget {

@@ -1,3 +1,8 @@
+import type { BrowserContextID } from '@browseros/cdp-protocol/domains/browser'
+import type {
+  Cookie,
+  CookieParam,
+} from '@browseros/cdp-protocol/domains/network'
 import type { ProtocolApi } from '@browseros/cdp-protocol/protocol-api'
 import { logger } from '../lib/logger'
 import type { CdpBackend, ControllerBackend } from './backends/types'
@@ -256,13 +261,21 @@ export class Browser {
 
   async newPage(
     url: string,
-    opts?: { hidden?: boolean; background?: boolean; windowId?: number },
+    opts?: {
+      hidden?: boolean
+      background?: boolean
+      windowId?: number
+      browserContextId?: BrowserContextID
+    },
   ): Promise<number> {
     const createResult = await this.cdp.Browser.createTab({
       url,
       ...(opts?.hidden !== undefined && { hidden: opts.hidden }),
       ...(opts?.background !== undefined && { background: opts.background }),
       ...(opts?.windowId !== undefined && { windowId: opts.windowId }),
+      ...(opts?.browserContextId !== undefined && {
+        browserContextId: opts.browserContextId,
+      }),
     })
 
     const tabId = (createResult.tab as TabInfo).tabId
@@ -1112,11 +1125,33 @@ export class Browser {
     return result.windows as WindowInfo[]
   }
 
-  async createWindow(opts?: { hidden?: boolean }): Promise<WindowInfo> {
+  async createWindow(opts?: {
+    hidden?: boolean
+    browserContextId?: BrowserContextID
+  }): Promise<WindowInfo> {
     const result = await this.cdp.Browser.createWindow({
       ...(opts?.hidden !== undefined && { hidden: opts.hidden }),
+      ...(opts?.browserContextId !== undefined && {
+        browserContextId: opts.browserContextId,
+      }),
     })
     return result.window as WindowInfo
+  }
+
+  async createBrowserContext(): Promise<BrowserContextID> {
+    const result = await this.cdp.Target.createBrowserContext()
+    return result.browserContextId
+  }
+
+  async getBrowserContexts(): Promise<BrowserContextID[]> {
+    const result = await this.cdp.Target.getBrowserContexts()
+    return result.browserContextIds
+  }
+
+  async disposeBrowserContext(
+    browserContextId: BrowserContextID,
+  ): Promise<void> {
+    await this.cdp.Target.disposeBrowserContext({ browserContextId })
   }
 
   async closeWindow(windowId: number): Promise<void> {
@@ -1180,6 +1215,40 @@ export class Browser {
     }
     this.pages.set(page, updated)
     return updated
+  }
+
+  async getCookies(
+    urls?: string[],
+    browserContextId?: BrowserContextID,
+  ): Promise<Cookie[]> {
+    if (browserContextId) {
+      const result = await this.cdp.Storage.getCookies({ browserContextId })
+      return result.cookies as Cookie[]
+    }
+
+    if (urls && urls.length > 0) {
+      const result = await this.cdp.Network.getCookies({ urls })
+      return result.cookies as Cookie[]
+    }
+
+    const result = await this.cdp.Storage.getCookies()
+    return result.cookies as Cookie[]
+  }
+
+  async setCookies(
+    cookies: CookieParam[],
+    browserContextId?: BrowserContextID,
+  ): Promise<void> {
+    await this.cdp.Storage.setCookies({
+      cookies,
+      ...(browserContextId ? { browserContextId } : {}),
+    })
+  }
+
+  async clearCookies(browserContextId?: BrowserContextID): Promise<void> {
+    await this.cdp.Storage.clearCookies(
+      browserContextId ? { browserContextId } : undefined,
+    )
   }
 
   // --- Bookmarks ---

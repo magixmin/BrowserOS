@@ -16,6 +16,34 @@ export function getSessionsDir(): string {
   return join(getBrowserosDir(), PATHS.SESSIONS_DIR_NAME)
 }
 
+export function getBrowserOpsDir(): string {
+  return join(getBrowserosDir(), PATHS.BROWSER_OPS_DIR_NAME)
+}
+
+export function getBrowserOpsProfilesDir(): string {
+  return join(getBrowserOpsDir(), PATHS.BROWSER_OPS_PROFILES_DIR_NAME)
+}
+
+export function getBrowserOpsCookieVaultsDir(): string {
+  return join(getBrowserOpsDir(), PATHS.BROWSER_OPS_COOKIE_VAULTS_DIR_NAME)
+}
+
+export function getBrowserOpsRuntimeSpecsDir(): string {
+  return join(getBrowserOpsDir(), PATHS.BROWSER_OPS_RUNTIME_SPECS_DIR_NAME)
+}
+
+export function getBrowserOpsRuntimeAssetsDir(): string {
+  return join(getBrowserOpsDir(), PATHS.BROWSER_OPS_RUNTIME_ASSETS_DIR_NAME)
+}
+
+export function getBrowserOpsLaunchBundlesDir(): string {
+  return join(getBrowserOpsDir(), PATHS.BROWSER_OPS_LAUNCH_BUNDLES_DIR_NAME)
+}
+
+export function getBrowserOpsLaunchExecutionsDir(): string {
+  return join(getBrowserOpsDir(), PATHS.BROWSER_OPS_LAUNCH_EXECUTIONS_DIR_NAME)
+}
+
 export function getSoulPath(): string {
   return join(getBrowserosDir(), PATHS.SOUL_FILE_NAME)
 }
@@ -37,6 +65,12 @@ export async function ensureBrowserosDir(): Promise<void> {
   await mkdir(getSkillsDir(), { recursive: true })
   await mkdir(getBuiltinSkillsDir(), { recursive: true })
   await mkdir(getSessionsDir(), { recursive: true })
+  await mkdir(getBrowserOpsProfilesDir(), { recursive: true })
+  await mkdir(getBrowserOpsCookieVaultsDir(), { recursive: true })
+  await mkdir(getBrowserOpsRuntimeSpecsDir(), { recursive: true })
+  await mkdir(getBrowserOpsRuntimeAssetsDir(), { recursive: true })
+  await mkdir(getBrowserOpsLaunchBundlesDir(), { recursive: true })
+  await mkdir(getBrowserOpsLaunchExecutionsDir(), { recursive: true })
 }
 
 export async function cleanOldSessions(): Promise<void> {

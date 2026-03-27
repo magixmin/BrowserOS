@@ -2,13 +2,13 @@ import { storage } from '@wxt-dev/storage'
 import { useCallback, useEffect, useState } from 'react'
 import type {
   BrowserFingerprintProfile,
+  BrowserOpsPlatform,
   BrowserOpsProfile,
   BrowserOpsProxy,
   BrowserOpsTaskTemplate,
+  BrowserOpsTaskType,
   BrowserOpsWorkspace,
   BrowserOpsWorkspaceSettings,
-  BrowserOpsPlatform,
-  BrowserOpsTaskType,
   HumanizationLevel,
   ProxyIpType,
   ProxySessionMode,
@@ -292,12 +292,10 @@ export function createDefaultBrowserOpsWorkspace(): BrowserOpsWorkspace {
 
 const DEFAULT_BROWSER_OPS_WORKSPACE = createDefaultBrowserOpsWorkspace()
 
-export const browserOpsWorkspaceStorage = storage.defineItem<BrowserOpsWorkspace>(
-  'local:browser-ops-workspace',
-  {
+export const browserOpsWorkspaceStorage =
+  storage.defineItem<BrowserOpsWorkspace>('local:browser-ops-workspace', {
     fallback: DEFAULT_BROWSER_OPS_WORKSPACE,
-  },
-)
+  })
 
 function cloneWorkspace(workspace: BrowserOpsWorkspace): BrowserOpsWorkspace {
   return structuredClone(workspace)
@@ -418,7 +416,9 @@ export function useBrowserOpsWorkspace() {
     async (
       updater: (current: BrowserOpsWorkspace) => BrowserOpsWorkspace,
     ): Promise<BrowserOpsWorkspace> => {
-      const current = ensureWorkspace(await browserOpsWorkspaceStorage.getValue())
+      const current = ensureWorkspace(
+        await browserOpsWorkspaceStorage.getValue(),
+      )
       const next = updater(current)
       const finalized = {
         ...next,
@@ -468,7 +468,9 @@ export function useBrowserOpsWorkspace() {
     async (profileId: string) =>
       commitWorkspace((current) => ({
         ...current,
-        profiles: current.profiles.filter((profile) => profile.id !== profileId),
+        profiles: current.profiles.filter(
+          (profile) => profile.id !== profileId,
+        ),
       })),
     [commitWorkspace],
   )

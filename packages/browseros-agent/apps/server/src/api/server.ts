@@ -18,6 +18,7 @@ import { KlavisClient } from '../lib/clients/klavis/klavis-client'
 import { initializeOAuth } from '../lib/clients/oauth'
 import { getDb } from '../lib/db'
 import { logger } from '../lib/logger'
+import { createBrowserOpsRoutes } from './routes/browser-ops'
 import { createChatRoutes } from './routes/chat'
 import { createGraphRoutes } from './routes/graph'
 import { createHealthRoute } from './routes/health'
@@ -118,6 +119,7 @@ export async function createHttpServer(config: HttpServerConfig) {
       }),
     )
     .route('/status', createStatusRoute({ controller }))
+    .route('/browser-ops', createBrowserOpsRoutes({ browser, controller }))
     .route('/soul', createSoulRoutes())
     .route('/memory', createMemoryRoutes())
     .route('/skills', createSkillsRoutes())
