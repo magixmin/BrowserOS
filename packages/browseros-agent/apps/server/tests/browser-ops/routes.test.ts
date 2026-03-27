@@ -617,6 +617,12 @@ function createRouteApp() {
           binaryPath: execution.binaryPath,
           pid: execution.pid,
           ports: execution.ports,
+          isolation: {
+            browserContextId: bundle.browserContextId,
+            launchContextId: bundle.env.BROWSER_OPS_LAUNCH_CONTEXT_ID ?? null,
+            sessionPartition: bundle.env.BROWSEROS_SESSION_PARTITION ?? null,
+            userDataDir: bundle.userDataDir,
+          },
           lastHealthCheckAt: null,
           health: {
             cdpReachable: execution.state === 'launched',
@@ -625,6 +631,7 @@ function createRouteApp() {
             proxyAuthBootstrapConfigured: false,
             proxyEgressVerified: false,
             proxySessionConsistent: true,
+            isolationContextMatches: true,
           },
           proxy: bundle.proxy
             ? {
@@ -678,6 +685,22 @@ function createRouteApp() {
             .map((instance) => instance.instanceId),
           unreachableInstanceIds: current
             .filter((instance) => instance.state === 'unreachable')
+            .map((instance) => instance.instanceId),
+          instancesWithoutProxyBootstrap: current
+            .filter((instance) => !instance.health.proxyAuthBootstrapConfigured)
+            .map((instance) => instance.instanceId),
+          instancesWithFailedProxyVerification: current
+            .filter(
+              (instance) =>
+                instance.lastProxyVerification?.verdict === 'failed' ||
+                instance.health.proxyEgressVerified === false,
+            )
+            .map((instance) => instance.instanceId),
+          instancesWithSessionDrift: current
+            .filter((instance) => !instance.health.proxySessionConsistent)
+            .map((instance) => instance.instanceId),
+          instancesWithIsolationMismatch: current
+            .filter((instance) => !instance.health.isolationContextMatches)
             .map((instance) => instance.instanceId),
         } satisfies BrowserOpsInstanceDiagnostics
       },
@@ -742,6 +765,24 @@ function createRouteApp() {
               .map((instance) => instance.instanceId),
             unreachableInstanceIds: [...instances.values()]
               .filter((instance) => instance.state === 'unreachable')
+              .map((instance) => instance.instanceId),
+            instancesWithoutProxyBootstrap: [...instances.values()]
+              .filter(
+                (instance) => !instance.health.proxyAuthBootstrapConfigured,
+              )
+              .map((instance) => instance.instanceId),
+            instancesWithFailedProxyVerification: [...instances.values()]
+              .filter(
+                (instance) =>
+                  instance.lastProxyVerification?.verdict === 'failed' ||
+                  instance.health.proxyEgressVerified === false,
+              )
+              .map((instance) => instance.instanceId),
+            instancesWithSessionDrift: [...instances.values()]
+              .filter((instance) => !instance.health.proxySessionConsistent)
+              .map((instance) => instance.instanceId),
+            instancesWithIsolationMismatch: [...instances.values()]
+              .filter((instance) => !instance.health.isolationContextMatches)
               .map((instance) => instance.instanceId),
           } satisfies BrowserOpsInstanceDiagnostics,
         }
@@ -900,6 +941,7 @@ describe('Browser Ops routes', () => {
     const json = (await response.json()) as {
       brief: {
         readiness: string
+        recommendedMode: string
         resolvedSkillId: string | null
         recommendedStartUrl: string
         launchMode: string
@@ -907,6 +949,7 @@ describe('Browser Ops routes', () => {
       }
     }
     assert.strictEqual(json.brief.readiness, 'ready')
+    assert.strictEqual(json.brief.recommendedMode, 'agent')
     assert.strictEqual(json.brief.resolvedSkillId, 'fill-form')
     assert.strictEqual(
       json.brief.recommendedStartUrl,
@@ -915,6 +958,37 @@ describe('Browser Ops routes', () => {
     assert.strictEqual(json.brief.launchMode, 'managed-window')
     assert.ok(json.brief.executionPrompt.includes('Task: TikTok Publish Video'))
     assert.ok(json.brief.executionPrompt.includes('Resolved skill: fill-form'))
+
+    if (originalUser === undefined) delete process.env.BROWSER_OPS_BRIGHTDATA_USERNAME
+    else process.env.BROWSER_OPS_BRIGHTDATA_USERNAME = originalUser
+    if (originalPass === undefined) delete process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD
+    else process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD = originalPass
+  })
+
+  it('recommends lobster mode for scraping-style browser ops tasks', async () => {
+    const originalUser = process.env.BROWSER_OPS_BRIGHTDATA_USERNAME
+    const originalPass = process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD
+    process.env.BROWSER_OPS_BRIGHTDATA_USERNAME = 'brd-user'
+    process.env.BROWSER_OPS_BRIGHTDATA_PASSWORD = 'brd-pass'
+
+    const app = createRouteApp()
+    const payload = createPreviewPayload()
+    payload.task.taskType = 'scraping'
+    payload.task.skillKey = 'scrape_walmart_prices'
+    payload.task.name = 'Walmart Price Scrape'
+    payload.task.goal = 'Collect price snapshots across product pages.'
+
+    const response = await app.request('/automation/brief', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+
+    assert.strictEqual(response.status, 200)
+    const json = (await response.json()) as {
+      brief: { recommendedMode: string }
+    }
+    assert.strictEqual(json.brief.recommendedMode, 'lobster')
 
     if (originalUser === undefined) delete process.env.BROWSER_OPS_BRIGHTDATA_USERNAME
     else process.env.BROWSER_OPS_BRIGHTDATA_USERNAME = originalUser

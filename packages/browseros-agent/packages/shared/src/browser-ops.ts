@@ -190,6 +190,7 @@ export interface BrowserOpsAutomationBrief {
   profileId: string
   taskId: string
   readiness: 'ready' | 'needs-setup'
+  recommendedMode: 'agent' | 'lobster'
   recommendedStartUrl: string
   launchMode: 'attached-current-window' | 'managed-window'
   resolvedSkillId: string | null
@@ -368,6 +369,12 @@ export interface BrowserOpsManagedInstance {
     server: number
     extension: number
   }
+  isolation: {
+    browserContextId: string | null
+    launchContextId: string | null
+    sessionPartition: string | null
+    userDataDir: string
+  }
   lastHealthCheckAt: string | null
   health: {
     cdpReachable: boolean
@@ -376,6 +383,7 @@ export interface BrowserOpsManagedInstance {
     proxyAuthBootstrapConfigured: boolean
     proxyEgressVerified: boolean
     proxySessionConsistent: boolean
+    isolationContextMatches: boolean
   }
   proxy: {
     providerName: string
@@ -394,6 +402,10 @@ export interface BrowserOpsInstanceDiagnostics {
   executionIdsWithoutInstances: string[]
   runningInstanceIds: string[]
   unreachableInstanceIds: string[]
+  instancesWithoutProxyBootstrap: string[]
+  instancesWithFailedProxyVerification: string[]
+  instancesWithSessionDrift: string[]
+  instancesWithIsolationMismatch: string[]
 }
 
 export interface BrowserOpsProxyVerification {

@@ -310,7 +310,7 @@ export function createBrowserOpsRoutes(deps: BrowserOpsRouteDeps) {
           }
 
           const chatDraft: BrowserOpsAutomationChatDraft = {
-            mode: request.mode,
+            mode: request.mode ?? brief.recommendedMode,
             query: brief.executionPrompt,
             browserContext: {
               ...(typeof page.windowId === 'number'

@@ -18,11 +18,18 @@ describe('status route', () => {
       extensionConnected: boolean
       proxyAuthBootstrapConfigured: boolean
       proxyAuthBootstrapRuleCount: number
+      browserOpsContext: {
+        profileId: string | null
+        sessionPartition: string | null
+        launchContextId: string | null
+        profileDir: string | null
+      }
     }
 
     expect(json.status).toBe('ok')
     expect(json.extensionConnected).toBe(true)
     expect(json.proxyAuthBootstrapConfigured).toBe(true)
     expect(json.proxyAuthBootstrapRuleCount).toBe(2)
+    expect(json.browserOpsContext.profileId).toBe(null)
   })
 })

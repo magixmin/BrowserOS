@@ -21,6 +21,12 @@ interface BrowserOpsInstanceProbe {
     serverReachable: boolean
     extensionReachable: boolean
     proxyAuthBootstrapConfigured: boolean
+    observedContext: {
+      profileId: string | null
+      sessionPartition: string | null
+      launchContextId: string | null
+      profileDir: string | null
+    }
   }>
 }
 
@@ -66,6 +72,12 @@ class DefaultInstanceProbe implements BrowserOpsInstanceProbe {
     serverReachable: boolean
     extensionReachable: boolean
     proxyAuthBootstrapConfigured: boolean
+    observedContext: {
+      profileId: string | null
+      sessionPartition: string | null
+      launchContextId: string | null
+      profileDir: string | null
+    }
   }> {
     const [cdpReachable, serverHealth, extensionReachable] =
       await Promise.all([
@@ -83,16 +95,34 @@ class DefaultInstanceProbe implements BrowserOpsInstanceProbe {
             const json = (await response.json()) as {
               status?: string
               proxyAuthBootstrapConfigured?: boolean
+              browserOpsContext?: {
+                profileId?: string | null
+                sessionPartition?: string | null
+                launchContextId?: string | null
+                profileDir?: string | null
+              }
             }
             return {
               serverReachable: json.status === 'ok',
               proxyAuthBootstrapConfigured:
                 json.proxyAuthBootstrapConfigured === true,
+              observedContext: {
+                profileId: json.browserOpsContext?.profileId ?? null,
+                sessionPartition: json.browserOpsContext?.sessionPartition ?? null,
+                launchContextId: json.browserOpsContext?.launchContextId ?? null,
+                profileDir: json.browserOpsContext?.profileDir ?? null,
+              },
             }
           })
           .catch(() => ({
             serverReachable: false,
             proxyAuthBootstrapConfigured: false,
+            observedContext: {
+              profileId: null,
+              sessionPartition: null,
+              launchContextId: null,
+              profileDir: null,
+            },
           })),
         this.probeTcp(ports.extension),
       ])
@@ -102,6 +132,12 @@ class DefaultInstanceProbe implements BrowserOpsInstanceProbe {
       serverReachable: serverHealth.serverReachable,
       extensionReachable,
       proxyAuthBootstrapConfigured: serverHealth.proxyAuthBootstrapConfigured,
+      observedContext: serverHealth.observedContext ?? {
+        profileId: null,
+        sessionPartition: null,
+        launchContextId: null,
+        profileDir: null,
+      },
     }
   }
 }
@@ -200,6 +236,12 @@ export class BrowserOpsRuntimeInstanceRegistryService
       binaryPath: execution.binaryPath,
       pid: execution.pid,
       ports: execution.ports,
+      isolation: {
+        browserContextId: bundle.browserContextId,
+        launchContextId: bundle.env.BROWSER_OPS_LAUNCH_CONTEXT_ID ?? null,
+        sessionPartition: bundle.env.BROWSEROS_SESSION_PARTITION ?? null,
+        userDataDir: bundle.userDataDir,
+      },
       lastHealthCheckAt: null,
       health: existing?.health ?? {
         cdpReachable: false,
@@ -208,6 +250,7 @@ export class BrowserOpsRuntimeInstanceRegistryService
         proxyAuthBootstrapConfigured: false,
         proxyEgressVerified: false,
         proxySessionConsistent: true,
+        isolationContextMatches: false,
       },
       proxy: bundle.proxy
         ? {
@@ -266,6 +309,15 @@ export class BrowserOpsRuntimeInstanceRegistryService
     if (!instance) return null
 
     const health = await this.probe.probePorts(instance.ports)
+    const isolationContextMatches =
+      (health.observedContext.launchContextId === null ||
+        instance.isolation.launchContextId ===
+          health.observedContext.launchContextId) &&
+      (health.observedContext.sessionPartition === null ||
+        instance.isolation.sessionPartition ===
+          health.observedContext.sessionPartition) &&
+      (health.observedContext.profileDir === null ||
+        instance.isolation.userDataDir === health.observedContext.profileDir)
     const updated: BrowserOpsManagedInstance = {
       ...instance,
       lastHealthCheckAt: new Date().toISOString(),
@@ -273,6 +325,7 @@ export class BrowserOpsRuntimeInstanceRegistryService
         ...health,
         proxyEgressVerified: instance.health.proxyEgressVerified,
         proxySessionConsistent: instance.health.proxySessionConsistent,
+        isolationContextMatches,
       },
       state:
         instance.state === 'failed' || instance.state === 'stopped'
@@ -331,6 +384,22 @@ export class BrowserOpsRuntimeInstanceRegistryService
         .map((instance) => instance.instanceId),
       unreachableInstanceIds: instances
         .filter((instance) => instance.state === 'unreachable')
+        .map((instance) => instance.instanceId),
+      instancesWithoutProxyBootstrap: instances
+        .filter((instance) => !instance.health.proxyAuthBootstrapConfigured)
+        .map((instance) => instance.instanceId),
+      instancesWithFailedProxyVerification: instances
+        .filter(
+          (instance) =>
+            instance.lastProxyVerification?.verdict === 'failed' ||
+            instance.health.proxyEgressVerified === false,
+        )
+        .map((instance) => instance.instanceId),
+      instancesWithSessionDrift: instances
+        .filter((instance) => !instance.health.proxySessionConsistent)
+        .map((instance) => instance.instanceId),
+      instancesWithIsolationMismatch: instances
+        .filter((instance) => !instance.health.isolationContextMatches)
         .map((instance) => instance.instanceId),
     }
   }

@@ -247,6 +247,8 @@ export class BrowserOpsRuntimePersistenceService
         BROWSEROS_PROFILE_ID: spec.profileId,
         BROWSEROS_SESSION_PARTITION: spec.sessionPartition,
         BROWSEROS_COOKIE_VAULT_KEY: spec.cookieVaultKey,
+        BROWSER_OPS_LAUNCH_CONTEXT_ID: spec.launchContextId,
+        BROWSER_OPS_PROFILE_DIR: asset.profileDirectoryPath,
       },
       fingerprint: {
         timezone: spec.fingerprint.timezone,

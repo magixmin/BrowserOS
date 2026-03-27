@@ -1186,7 +1186,7 @@ export const BrowserOpsPage: FC = () => {
           task: selectedTask,
           proxies: workspace.proxies,
           settings: workspace.settings,
-          mode: 'agent',
+          mode: automationBrief.recommendedMode,
           forceManagedWindow: true,
           restoreCookieVault: true,
         },
@@ -2523,6 +2523,10 @@ export const BrowserOpsPage: FC = () => {
                           value={automationBrief.readiness}
                         />
                         <MiniInfo
+                          label="Recommended Mode"
+                          value={automationBrief.recommendedMode}
+                        />
+                        <MiniInfo
                           label="Launch Mode"
                           value={automationBrief.launchMode}
                         />
@@ -3289,7 +3293,7 @@ export const BrowserOpsPage: FC = () => {
                     />
                     <MiniInfo
                       label="Health"
-                      value={`${instance.health.cdpReachable ? 'cdp' : '-'} / ${instance.health.serverReachable ? 'server' : '-'} / ${instance.health.extensionReachable ? 'ext' : '-'} / ${instance.health.proxyAuthBootstrapConfigured ? 'proxy-auth' : '-'} / ${instance.health.proxyEgressVerified ? 'egress' : '-'} / ${instance.health.proxySessionConsistent ? 'session' : 'session-drift'}`}
+                      value={`${instance.health.cdpReachable ? 'cdp' : '-'} / ${instance.health.serverReachable ? 'server' : '-'} / ${instance.health.extensionReachable ? 'ext' : '-'} / ${instance.health.proxyAuthBootstrapConfigured ? 'proxy-auth' : '-'} / ${instance.health.proxyEgressVerified ? 'egress' : '-'} / ${instance.health.proxySessionConsistent ? 'session' : 'session-drift'} / ${instance.health.isolationContextMatches ? 'isolation' : 'isolation-drift'}`}
                     />
                     <MiniInfo
                       label="Checked"
@@ -3408,10 +3412,10 @@ export const BrowserOpsPage: FC = () => {
                     <MiniInfo
                       label="Proxy Session"
                       value={instance.proxy?.sessionId ?? 'rotate'}
-                    />
-                  </div>
+                      />
+                    </div>
 
-                  <div className="grid gap-3 md:grid-cols-3">
+                  <div className="grid gap-3 md:grid-cols-4">
                     <MiniInfo
                       label="CDP"
                       value={instance.ports.cdp.toString()}
@@ -3423,6 +3427,25 @@ export const BrowserOpsPage: FC = () => {
                     <MiniInfo
                       label="Extension"
                       value={instance.ports.extension.toString()}
+                    />
+                    <MiniInfo
+                      label="Launch Context"
+                      value={instance.isolation.launchContextId ?? 'n/a'}
+                    />
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <MiniInfo
+                      label="Session Partition"
+                      value={instance.isolation.sessionPartition ?? 'n/a'}
+                    />
+                    <MiniInfo
+                      label="Browser Context"
+                      value={instance.isolation.browserContextId ?? 'default'}
+                    />
+                    <MiniInfo
+                      label="User Data Dir"
+                      value={instance.isolation.userDataDir}
                     />
                   </div>
 
@@ -3501,6 +3524,22 @@ export const BrowserOpsPage: FC = () => {
                   label="Missing Instance"
                   value={instanceDiagnostics.executionIdsWithoutInstances.length.toString()}
                 />
+                <MiniInfo
+                  label="No Proxy Bootstrap"
+                  value={instanceDiagnostics.instancesWithoutProxyBootstrap.length.toString()}
+                />
+                <MiniInfo
+                  label="Proxy Verify Failed"
+                  value={instanceDiagnostics.instancesWithFailedProxyVerification.length.toString()}
+                />
+                <MiniInfo
+                  label="Session Drift"
+                  value={instanceDiagnostics.instancesWithSessionDrift.length.toString()}
+                />
+                <MiniInfo
+                  label="Isolation Drift"
+                  value={instanceDiagnostics.instancesWithIsolationMismatch.length.toString()}
+                />
               </div>
 
               <DiagnosticsList
@@ -3514,6 +3553,22 @@ export const BrowserOpsPage: FC = () => {
               <DiagnosticsList
                 title="Unreachable Instances"
                 items={instanceDiagnostics.unreachableInstanceIds}
+              />
+              <DiagnosticsList
+                title="Instances Without Proxy Bootstrap"
+                items={instanceDiagnostics.instancesWithoutProxyBootstrap}
+              />
+              <DiagnosticsList
+                title="Instances With Failed Proxy Verification"
+                items={instanceDiagnostics.instancesWithFailedProxyVerification}
+              />
+              <DiagnosticsList
+                title="Instances With Session Drift"
+                items={instanceDiagnostics.instancesWithSessionDrift}
+              />
+              <DiagnosticsList
+                title="Instances With Isolation Mismatch"
+                items={instanceDiagnostics.instancesWithIsolationMismatch}
               />
             </>
           ) : (

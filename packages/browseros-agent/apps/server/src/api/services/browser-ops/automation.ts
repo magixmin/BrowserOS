@@ -13,6 +13,18 @@ function getRecommendedStartUrl(task: BrowserOpsTaskTemplate): string {
   return 'about:blank'
 }
 
+function getRecommendedMode(
+  task: BrowserOpsTaskTemplate,
+): 'agent' | 'lobster' {
+  switch (task.taskType) {
+    case 'scraping':
+    case 'research':
+      return 'lobster'
+    default:
+      return 'agent'
+  }
+}
+
 function buildExecutionPrompt(args: {
   input: BrowserOpsPreviewInput
   routePreview: BrowserOpsPreviewResult
@@ -84,11 +96,13 @@ export async function buildBrowserOpsAutomationBrief(
     input.task.taskType === 'publishing' || input.task.platform !== 'generic'
       ? 'managed-window'
       : 'attached-current-window'
+  const recommendedMode = getRecommendedMode(input.task)
 
   return {
     profileId: input.profile.id,
     taskId: input.task.id,
     readiness,
+    recommendedMode,
     recommendedStartUrl,
     launchMode,
     resolvedSkillId: skillResolution.resolvedSkillId,

@@ -51,6 +51,12 @@ describe('BrowserOpsRuntimeInstanceStore', () => {
         server: 9601,
         extension: 9801,
       },
+      isolation: {
+        browserContextId: 'context-1',
+        launchContextId: 'profile-1:window-1',
+        sessionPartition: 'persist:profile-1',
+        userDataDir: '/tmp/profile-1',
+      },
       lastHealthCheckAt: null,
       health: {
         cdpReachable: true,
@@ -59,6 +65,7 @@ describe('BrowserOpsRuntimeInstanceStore', () => {
         proxyAuthBootstrapConfigured: false,
         proxyEgressVerified: false,
         proxySessionConsistent: true,
+        isolationContextMatches: true,
       },
       proxy: null,
       lastProxyVerification: null,

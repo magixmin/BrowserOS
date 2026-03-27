@@ -40,6 +40,12 @@ class FixedProbe {
       serverReachable: boolean
       extensionReachable: boolean
       proxyAuthBootstrapConfigured: boolean
+      observedContext: {
+        profileId: string | null
+        sessionPartition: string | null
+        launchContextId: string | null
+        profileDir: string | null
+      }
     },
   ) {}
 
@@ -63,7 +69,10 @@ function createBundle(): BrowserOpsLaunchBundle {
     launcherScriptPath: '/tmp/spec-1.sh',
     launcherCommandPreview: 'BrowserOS --user-data-dir=/tmp/profile-1',
     chromiumArgs: ['--user-data-dir=/tmp/profile-1'],
-    env: {},
+    env: {
+      BROWSEROS_SESSION_PARTITION: 'persist:profile-1',
+      BROWSER_OPS_LAUNCH_CONTEXT_ID: 'profile-1:window-1',
+    },
     fingerprint: {
       timezone: 'America/New_York',
       language: 'en-US',
@@ -105,6 +114,12 @@ describe('BrowserOpsRuntimeInstanceRegistryService', () => {
         serverReachable: true,
         extensionReachable: true,
         proxyAuthBootstrapConfigured: true,
+        observedContext: {
+          profileId: null,
+          sessionPartition: 'persist:profile-1',
+          launchContextId: null,
+          profileDir: '/tmp/profile-1',
+        },
       }),
     )
 
@@ -120,6 +135,7 @@ describe('BrowserOpsRuntimeInstanceRegistryService', () => {
     assert.strictEqual(refreshed?.health.proxyAuthBootstrapConfigured, true)
     assert.strictEqual(refreshed?.health.proxyEgressVerified, false)
     assert.strictEqual(refreshed?.health.proxySessionConsistent, true)
+    assert.strictEqual(refreshed?.health.isolationContextMatches, true)
   })
 
   it('computes instance diagnostics', async () => {
@@ -131,6 +147,12 @@ describe('BrowserOpsRuntimeInstanceRegistryService', () => {
         serverReachable: false,
         extensionReachable: false,
         proxyAuthBootstrapConfigured: false,
+        observedContext: {
+          profileId: null,
+          sessionPartition: null,
+          launchContextId: null,
+          profileDir: null,
+        },
       }),
     )
 
@@ -146,6 +168,8 @@ describe('BrowserOpsRuntimeInstanceRegistryService', () => {
 
     assert.strictEqual(diagnostics.unreachableInstanceIds.length, 1)
     assert.strictEqual(diagnostics.executionIdsWithoutInstances.length, 1)
+    assert.strictEqual(diagnostics.instancesWithoutProxyBootstrap.length, 1)
+    assert.strictEqual(diagnostics.instancesWithFailedProxyVerification.length, 1)
   })
 
   it('refreshes and reconciles instances', async () => {
@@ -157,6 +181,12 @@ describe('BrowserOpsRuntimeInstanceRegistryService', () => {
         serverReachable: false,
         extensionReachable: false,
         proxyAuthBootstrapConfigured: false,
+        observedContext: {
+          profileId: null,
+          sessionPartition: null,
+          launchContextId: null,
+          profileDir: null,
+        },
       }),
     )
 
@@ -187,6 +217,12 @@ describe('BrowserOpsRuntimeInstanceRegistryService', () => {
         serverReachable: true,
         extensionReachable: true,
         proxyAuthBootstrapConfigured: false,
+        observedContext: {
+          profileId: null,
+          sessionPartition: null,
+          launchContextId: null,
+          profileDir: null,
+        },
       }),
     )
 

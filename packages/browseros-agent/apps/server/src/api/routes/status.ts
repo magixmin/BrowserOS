@@ -20,6 +20,12 @@ export function createStatusRoute(deps: StatusDeps) {
       extensionConnected: controller.isConnected(),
       proxyAuthBootstrapConfigured: controller.getBootstrapProxyAuthRuleCount() > 0,
       proxyAuthBootstrapRuleCount: controller.getBootstrapProxyAuthRuleCount(),
+      browserOpsContext: {
+        profileId: process.env.BROWSEROS_PROFILE_ID ?? null,
+        sessionPartition: process.env.BROWSEROS_SESSION_PARTITION ?? null,
+        launchContextId: process.env.BROWSER_OPS_LAUNCH_CONTEXT_ID ?? null,
+        profileDir: process.env.BROWSER_OPS_PROFILE_DIR ?? null,
+      },
     }),
   )
 }

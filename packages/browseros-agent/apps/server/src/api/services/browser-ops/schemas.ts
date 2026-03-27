@@ -90,7 +90,7 @@ export const BrowserOpsPreviewRequestSchema = z.object({
 
 export const BrowserOpsAutomationRunSchema = BrowserOpsPreviewRequestSchema.extend(
   {
-    mode: z.enum(['agent', 'lobster']).optional().default('agent'),
+    mode: z.enum(['agent', 'lobster']).optional(),
     forceManagedWindow: z.boolean().optional().default(true),
     restoreCookieVault: z.boolean().optional().default(true),
   },
